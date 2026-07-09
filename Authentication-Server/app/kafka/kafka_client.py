@@ -1,0 +1,76 @@
+import json
+import logging
+from kafka import KafkaProducer
+
+from app.core.config import settings
+from app.exceptions.infrastructure_exception import InfrastructureException
+
+logger = logging.getLogger(__name__)
+
+
+class KafkaClient:
+
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        if hasattr(self, "_producer"):
+            return
+        self._producer = None
+
+    def start_producer(self):
+        """Initialize the Kafka producer."""
+        if self._producer is not None:
+            return
+        try:
+            self._producer = KafkaProducer(
+                bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
+                value_serializer=lambda value: json.dumps(value).encode("utf-8"),
+                batch_size=settings.KAFKA_BATCH_SIZE,
+                linger_ms=settings.KAFKA_LINGER_MS,
+                acks=settings.KAFKA_ACKS,
+                retries=settings.KAFKA_RETRIES,
+                security_protocol=settings.KAFKA_SECURITY_PROTOCOL,
+                sasl_mechanism=settings.KAFKA_SASL_MECHANISM,
+                sasl_plain_username=settings.KAFKA_SASL_PLAIN_USERNAME,
+                sasl_plain_password=settings.KAFKA_SASL_PLAIN_PASSWORD,
+            )
+            logger.info("Kafka Producer started successfully.")
+        except Exception as e:
+            raise InfrastructureException(service="Kafka") from e
+
+    @property
+    def producer(self) -> KafkaProducer:
+        if self._producer is None:
+            self.start_producer()
+        return self._producer
+
+    def stop_producer(self):
+        """Flush and close the Kafka producer."""
+        if self._producer is not None:
+            try:
+                self._producer.flush()
+                self._producer.close()
+                logger.info("Kafka Producer stopped successfully.")
+            except Exception as e:
+                logger.error("Error stopping Kafka Producer: %s", str(e))
+            finally:
+                self._producer = None
+
+    def verify_connection(self):
+        """Verify connection to Kafka bootstrap servers."""
+        try:
+            prod = self.producer
+            if not prod.bootstrap_connected():
+                raise Exception("Not connected to bootstrap servers")
+            logger.info("Kafka connection verified successfully.")
+        except Exception as e:
+            logger.critical("Kafka connection check failed: %s", str(e))
+            raise InfrastructureException(service="Kafka") from e
+
+
+kafka_client = KafkaClient()
