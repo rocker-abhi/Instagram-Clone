@@ -18,7 +18,8 @@ def register_exception_handlers(app: FastAPI):
             status_code=exc.status_code,
             content={
                 "success": False,
-                "error": {"code": exc.error_code, "message": exc.message},
+                "message": exc.message,
+                "data": {"code": exc.error_code},
             },
         )
 
@@ -31,10 +32,8 @@ def register_exception_handlers(app: FastAPI):
             status_code=503,
             content={
                 "success": False,
-                "error": {
-                    "code": "SERVER_001",
-                    "message": "Service temporarily unavailable.",
-                },
+                "message": "Service temporarily unavailable.",
+                "data": {"code": "SERVER_001", "service": exc.service},
             },
         )
 
@@ -45,9 +44,7 @@ def register_exception_handlers(app: FastAPI):
             status_code=500,
             content={
                 "success": False,
-                "error": {
-                    "code": "INTERNAL_SERVER_ERROR",
-                    "message": "An unexpected error occurred.",
-                },
+                "message": "An unexpected error occurred.",
+                "data": {"code": "INTERNAL_SERVER_ERROR"},
             },
         )

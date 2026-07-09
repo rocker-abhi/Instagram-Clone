@@ -1,6 +1,5 @@
 import hashlib
 from datetime import datetime, timedelta, timezone
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions.business_exception import InvalidPassword, UserNotFound
 from app.models.refresh_session import RefreshSession
@@ -8,13 +7,20 @@ from app.repository.user_reposiory import UserRepository
 from app.schemas.login_schema import LoginRequest, LoginResponseData
 from app.utils.jwt import create_access_token, create_refresh_token
 from app.utils.password import verify_password
+from app.kafka.producer import KafkaProducer
 
 
 class AuthenticationService:
 
-    def __init__(self, session: AsyncSession):
-        self.session = session
-        self.user_repository = UserRepository(session)
+    def __init__(
+        self,
+        user_repository: UserRepository,
+        redis_store,
+        kafka_producer: KafkaProducer,
+    ):
+        self.user_repository = user_repository
+        self.redis_store = redis_store
+        self.kafka_producer = kafka_producer
 
     async def login(
         self, login_data: LoginRequest, request_info: dict = None
@@ -59,8 +65,8 @@ class AuthenticationService:
             expires_at=expires_at,
         )
 
-        self.session.add(session_record)
-        await self.session.commit()
+        self.user_repository.session.add(session_record)
+        await self.user_repository.session.commit()
 
         return LoginResponseData(
             access_token=access_token,

@@ -20,4 +20,5 @@ class LoginResponseData(BaseModel):
 
 class LoginResponse(BaseModel):
     success: bool = True
+    message: str = "Login successful"
     data: LoginResponseData

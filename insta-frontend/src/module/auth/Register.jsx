@@ -17,6 +17,36 @@ export default function Register({ onSwitchToLogin }) {
 
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState(""); // "", "checking", "available", "taken"
+
+  useEffect(() => {
+    if (!username.trim()) {
+      setUsernameStatus("");
+      return;
+    }
+
+    setUsernameStatus("checking");
+    const delayDebounceFn = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `http://localhost:5000/users/search?identifier=${username}`
+        );
+        const data = await response.json();
+        if (data.success) {
+          if (data.message === "User found") {
+            setUsernameStatus("taken");
+          } else {
+            setUsernameStatus("available");
+          }
+        }
+      } catch (err) {
+        console.error("Error checking username:", err);
+        setUsernameStatus("");
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [username]);
 
   const recaptchaVerifierRef = useRef(null);
 
@@ -233,6 +263,15 @@ export default function Register({ onSwitchToLogin }) {
                 className="w-full pl-11 pr-4 py-3 bg-slate-950/40 border border-slate-800 rounded-2xl text-white placeholder-slate-500 text-sm focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all duration-300"
               />
             </div>
+            {usernameStatus === "checking" && (
+              <span className="text-xs text-purple-400 mt-1 block">Checking username availability...</span>
+            )}
+            {usernameStatus === "available" && (
+              <span className="text-xs text-green-400 mt-1 block">Username is available!</span>
+            )}
+            {usernameStatus === "taken" && (
+              <span className="text-xs text-red-400 mt-1 block">Username is already taken.</span>
+            )}
           </div>
 
           {/* Password */}
@@ -313,6 +352,15 @@ export default function Register({ onSwitchToLogin }) {
                     className="w-full pl-11 pr-4 py-3 bg-slate-950/40 border border-slate-800 rounded-2xl text-white placeholder-slate-500 text-sm focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all duration-300"
                   />
                 </div>
+                {usernameStatus === "checking" && (
+                  <span className="text-xs text-pink-400 mt-1 block">Checking username availability...</span>
+                )}
+                {usernameStatus === "available" && (
+                  <span className="text-xs text-green-400 mt-1 block">Username is available!</span>
+                )}
+                {usernameStatus === "taken" && (
+                  <span className="text-xs text-red-400 mt-1 block">Username is already taken.</span>
+                )}
               </div>
 
               {/* Password */}
