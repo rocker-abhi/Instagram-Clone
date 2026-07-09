@@ -16,7 +16,6 @@ class __UserRegisteredEvent:
 
     event_type: str
     source: str
-    version: int
     occurred_at: str
 
 
@@ -33,6 +32,5 @@ class UserRegisteredEventBuilder:
             registration_method=user.registration_method,
             event_type="user.registered",
             source="authentication-server",
-            version=1,
             occurred_at=datetime.now(UTC).isoformat(),
         )
