@@ -23,3 +23,7 @@ class UserService:
             message="User found",
             data=UserSearchResponseData(),
         )
+
+    async def check_phone_exists(self, phone: str) -> bool:
+        user = await self.user_repository.get_user_by_phone(phone)
+        return user is not None

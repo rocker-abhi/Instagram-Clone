@@ -20,3 +20,22 @@ class InvalidPassword(ApplicationException):
             status_code=HTTPStatus.BAD_REQUEST,
             error_code="INVALID_PASSWORD",
         )
+
+
+class UserAlreadyExists(ApplicationException):
+
+    def __init__(self, message="User already exists."):
+        super().__init__(
+            message=message,
+            status_code=HTTPStatus.CONFLICT,
+            error_code="USER_ALREADY_EXISTS",
+        )
+
+class PhoneNumberAlreadyExists(ApplicationException):
+
+    def __init__(self, message="Phone number already exists"):
+        super().__init__(
+            message=message,
+            status_code=HTTPStatus.CONFLICT,
+            error_code="PHONE_NUMBER_ALREADY_EXISTS",
+        )

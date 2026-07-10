@@ -24,5 +24,8 @@ class __RedisClient:
 
     async def close(self):
         await self.client.close()
+    
+    async def get_redis_client(self):
+        return self.client
 
 redis_client = __RedisClient()

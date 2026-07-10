@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, Request
 
 from app.routes.dependencies import get_auth_service
@@ -6,6 +7,7 @@ from app.service.authentication_service import AuthenticationService
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 
+logger = logging.getLogger(__name__)
 
 @auth_router.post("/login", response_model=LoginResponse)
 async def login(
@@ -20,10 +22,25 @@ async def login(
     request_info = {
         "ip_address": ip_address,
         "user_agent": user_agent,
-        # Parse basic browser name from User-Agent
         "browser": user_agent.split(" ")[0] if user_agent else "Unknown",
     }
+    
+    logger.info("Request info", extra=request_info)
 
     response_data = await auth_service.login(login_data, request_info)
 
     return LoginResponse(success=True, data=response_data)
+
+
+from app.schemas.register_schema import RegisterUserRequest, RegisterUserResponse
+
+
+@auth_router.post("/register", response_model=RegisterUserResponse)
+async def register_user(
+    register_data: RegisterUserRequest,
+    auth_service: AuthenticationService = Depends(get_auth_service),
+):
+    response_data = await auth_service.register(register_data)
+    return RegisterUserResponse(
+        success=True, message="User created", data=response_data
+    )

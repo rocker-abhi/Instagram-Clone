@@ -1,13 +1,19 @@
 import hashlib
 from datetime import datetime, timedelta, timezone
 
-from app.exceptions.business_exception import InvalidPassword, UserNotFound
+from app.exceptions.business_exception import (
+    InvalidPassword,
+    UserNotFound,
+    UserAlreadyExists,
+)
 from app.models.refresh_session import RefreshSession
 from app.repository.user_reposiory import UserRepository
 from app.schemas.login_schema import LoginRequest, LoginResponseData
+from app.schemas.register_schema import RegisterUserRequest, RegisterUserResponseData
 from app.utils.jwt import create_access_token, create_refresh_token
 from app.utils.password import verify_password
 from app.kafka.producer import KafkaProducer
+from app.routes.strategy.user_registeration.factory import UserRegisterationBuilder, UserRegisterationFactory
 
 
 class AuthenticationService:
@@ -15,11 +21,11 @@ class AuthenticationService:
     def __init__(
         self,
         user_repository: UserRepository,
-        redis_store,
+        redis_client,
         kafka_producer: KafkaProducer,
     ):
         self.user_repository = user_repository
-        self.redis_store = redis_store
+        self.redis_client = redis_client
         self.kafka_producer = kafka_producer
 
     async def login(
@@ -72,4 +78,34 @@ class AuthenticationService:
             access_token=access_token,
             refresh_token=refresh_token,
             token_type="Bearer",
+        )
+
+    async def register(
+        self, register_data: RegisterUserRequest
+    ) -> RegisterUserResponseData:
+        # Check if username already exists
+        existing_username = await self.user_repository.get_user_by_username(
+            register_data.username
+        )
+        if existing_username:
+            raise UserAlreadyExists()
+
+        # Build registration strategy using builder
+        strategy = (
+            UserRegisterationBuilder()
+            .set_request_data(register_data)
+            .set_user_repository(self.user_repository)
+            .set_kafka(self.kafka_producer)
+            .set_redis(self.redis_client)
+            .set_strategy_type(register_data.registeration_type)
+            .build()
+        )
+
+        result_dict = await UserRegisterationFactory.get_strategy(register_data.registeration_type, strategy).register()
+
+        return RegisterUserResponseData(
+            id=result_dict.get("id"),
+            username=result_dict.get("username"),
+            email=result_dict.get("email"),
+            phone=result_dict.get("phone"),
         )

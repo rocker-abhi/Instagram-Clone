@@ -25,7 +25,7 @@ class UserRegisteredEventBuilder:
     def build(user) -> __UserRegisteredEvent:
         return __UserRegisteredEvent(
             event_id=str(uuid4()),
-            user_id=user.user_id,
+            user_id=str(user.id),
             username=user.username,
             email=user.email,
             phone=user.phone,
