@@ -10,7 +10,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 
 if TYPE_CHECKING:
-    from app.models.refresh_session import RefreshSession
     from app.models.password_history import PasswordHistory
     from app.models.login_history import LoginHistory
 
@@ -81,11 +80,6 @@ class User(Base):
     )
 
     # Relationships
-    refresh_sessions: Mapped[list[RefreshSession]] = relationship(
-        "RefreshSession",
-        back_populates="user",
-        cascade="all, delete-orphan",
-    )
     password_histories: Mapped[list[PasswordHistory]] = relationship(
         "PasswordHistory",
         back_populates="user",
