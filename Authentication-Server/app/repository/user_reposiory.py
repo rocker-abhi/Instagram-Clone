@@ -1,6 +1,7 @@
 from sqlalchemy import select
 from app.exceptions.infrastructure_exception import InfrastructureException
 from app.models.user import User
+from app.models.password_history import PasswordHistory
 
 
 class UserRepository:
@@ -40,11 +41,61 @@ class UserRepository:
         except Exception as e:
             raise InfrastructureException(service="Database") from e
 
+    async def get_user_by_id(self, user_id: str) -> User | None:
+        try:
+            stmt = select(User).where(User.id == user_id)
+            result = await self.session.execute(stmt)
+            return result.scalar_one_or_none()
+        except Exception as e:
+            raise InfrastructureException(service="Database") from e
+
     async def create_user(self, user: User) -> User:
         try:
             self.session.add(user)
+            await self.session.flush()
+
+            # Add to password history in the same transaction
+            history = PasswordHistory(
+                user_id=user.id,
+                password_hash=user.password_hash
+            )
+            self.session.add(history)
+
             await self.session.commit()
             await self.session.refresh(user)
             return user
         except Exception as e:
+            await self.session.rollback()
+            raise InfrastructureException(service="Database") from e
+
+    async def get_password_history(self, user_id) -> list[PasswordHistory]:
+        try:
+            stmt = (
+                select(PasswordHistory)
+                .where(PasswordHistory.user_id == user_id)
+                .order_by(PasswordHistory.changed_at.desc())
+            )
+            result = await self.session.execute(stmt)
+            return list(result.scalars().all())
+        except Exception as e:
+            raise InfrastructureException(service="Database") from e
+
+    async def update_password_with_history(self, user: User, new_pwd_hash: str, old_records_to_delete: list[PasswordHistory]) -> None:
+        try:
+            user.password_hash = new_pwd_hash
+            
+            # Add new password to history
+            history = PasswordHistory(
+                user_id=user.id,
+                password_hash=new_pwd_hash
+            )
+            self.session.add(history)
+
+            # Delete old records exceeding limit
+            for record in old_records_to_delete:
+                await self.session.delete(record)
+
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
             raise InfrastructureException(service="Database") from e

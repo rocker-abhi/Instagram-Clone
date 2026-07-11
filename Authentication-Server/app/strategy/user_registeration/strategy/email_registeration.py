@@ -4,7 +4,7 @@ import logging
 from app.exceptions.business_exception import UserAlreadyExists
 from app.kafka.events.user_registered import UserRegisteredEventBuilder
 from app.models.user import User
-from app.routes.strategy.user_registeration.interface import (
+from app.strategy.user_registeration.interface import (
     UserRegisterationInterface,
 )
 from app.utils.password import hash_password
@@ -30,14 +30,37 @@ class EmailRegisteration(UserRegisterationInterface):
 
     async def register(self):
         logger.debug(f"Registering User : info -> {self.request_data}")
-        # Check if email already exists
         existing_email = await self.user_repository.get_user_by_email(
             self.request_data.email
         )
-
         if existing_email:
-            logger.debug(f"Email Already Exists : info -> {existing_email}")
-            raise EmailAlreadyExists()
+            if existing_email.is_email_verified:
+                logger.debug(f"Email Already Exists and Verified : info -> {existing_email}")
+                raise EmailAlreadyExists()
+            else:
+                # User exists but is not verified: update details and resend verification link
+                logger.debug(f"Email exists but not verified, resending link: info -> {existing_email}")
+                existing_email.password_hash = hash_password(self.request_data.password)
+                await self.user_repository.session.commit()
+
+                otp = generate_otp()
+                logger.debug(f"New OTP for existing user: {otp}")
+
+                redis_store = get_store(self.redis, StoreEnums.EMAIL_VERIFICATION)
+                await redis_store.set(str(existing_email.id), str(otp))
+
+                event = (
+                    UserRegisteredEventBuilder()
+                    .set_email(existing_email.email)
+                    .set_phone(self.request_data.phone)
+                    .set_registration_method(self.strategy_type)
+                    .set_user_id(existing_email.id)
+                    .set_username(existing_email.username)
+                    .set_otp(otp)
+                    .build()
+                )
+                self.kafka.publish(topic=KafakTopics.USER_REGISTERED, message=asdict(event))
+                return
 
         existing_user = await self.user_repository.get_user_by_username(
             self.request_data.username

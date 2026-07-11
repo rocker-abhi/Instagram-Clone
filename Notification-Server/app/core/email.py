@@ -15,8 +15,16 @@ class EmailService:
 
     def connect(self) -> None:
         self.smtp = smtplib.SMTP(self.host, self.port)
-        self.smtp.starttls()
-        self.smtp.login(self.username, self.password)
+        try:
+            self.smtp.starttls()
+        except Exception:
+            pass
+
+        if self.username and self.password:
+            try:
+                self.smtp.login(self.username, self.password)
+            except smtplib.SMTPNotSupportedError:
+                pass
 
     def disconnect(self) -> None:
         if self.smtp:
@@ -43,7 +51,16 @@ class EmailService:
 
             message.set_content(body)
 
-            self.smtp.send_message(message)
+            try:
+                self.smtp.send_message(message)
+            except Exception:
+                # Try disconnecting the timed-out connection and reconnect
+                try:
+                    self.disconnect()
+                except Exception:
+                    pass
+                self.connect()
+                self.smtp.send_message(message)
         finally:
             if should_disconnect:
                 self.disconnect()

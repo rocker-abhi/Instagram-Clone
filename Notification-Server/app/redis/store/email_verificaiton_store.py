@@ -27,7 +27,7 @@ class EmailVerificationStore(RedisInterface):
 
     async def delete(self, key: str) -> None:
         try:
-            await self.redis_client.delete(key)
+            await self.redis_client.delete(f"email_verification:{key}")
         except Exception as e:
             logger.error("Redis delete error for key %s: %s", key, str(e))
             raise e

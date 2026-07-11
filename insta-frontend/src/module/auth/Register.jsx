@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Mail, Phone, Lock, User, UserCheck, Shield, Sparkles, KeyRound } from "lucide-react";
 import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 import { auth } from "../../firebase";
+import { API_BASE_URL } from "../../config";
 
 export default function Register({ onSwitchToLogin }) {
   const [method, setMethod] = useState("email"); // "email" or "phone"
@@ -15,11 +16,27 @@ export default function Register({ onSwitchToLogin }) {
   const [otpSent, setOtpSent] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState(null);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState(10);
 
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState(""); // "", "checking", "available", "taken"
   const [phoneStatus, setPhoneStatus] = useState(""); // "", "checking", "available", "taken"
+
+  const recaptchaVerifierRef = useRef(null);
+
+  // Recaptcha cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (recaptchaVerifierRef.current) {
+        try {
+          recaptchaVerifierRef.current.clear();
+        } catch (e) {
+          console.error("Failed to clear Recaptcha:", e);
+        }
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (phone.length !== 10) {
@@ -31,7 +48,7 @@ export default function Register({ onSwitchToLogin }) {
     const delayDebounceFn = setTimeout(async () => {
       try {
         const response = await fetch(
-          `http://localhost:5000/users/phone?phone=%2B91${phone}`
+          `${API_BASE_URL}/users/phone?phone=%2B91${phone}`
         );
         const data = await response.json();
         if (data.success) {
@@ -60,7 +77,7 @@ export default function Register({ onSwitchToLogin }) {
     const delayDebounceFn = setTimeout(async () => {
       try {
         const response = await fetch(
-          `http://localhost:5000/users/search?identifier=${username}`
+          `${API_BASE_URL}/users/search?identifier=${username}`
         );
         const data = await response.json();
         if (data.success) {
@@ -78,6 +95,23 @@ export default function Register({ onSwitchToLogin }) {
 
     return () => clearTimeout(delayDebounceFn);
   }, [username]);
+
+  useEffect(() => {
+    if (!isSuccessModalOpen) return;
+
+    const interval = setInterval(() => {
+      setRedirectCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          onSwitchToLogin();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isSuccessModalOpen, onSwitchToLogin]);
 
   useEffect(() => {
     // Clear error by default
@@ -153,8 +187,6 @@ export default function Register({ onSwitchToLogin }) {
     }
   }, [email, phone, username, password, confirmPassword, method, usernameStatus, phoneStatus]);
 
-  const recaptchaVerifierRef = useRef(null);
-
   const setupRecaptcha = () => {
     if (recaptchaVerifierRef.current) return;
     try {
@@ -192,7 +224,6 @@ export default function Register({ onSwitchToLogin }) {
       const result = await signInWithPhoneNumber(auth, fullPhoneNumber, appVerifier);
       setConfirmationResult(result);
       setOtpSent(true);
-      alert("OTP sent to your phone number!");
     } catch (err) {
       console.error(err);
       setError(err.message || "Failed to send OTP. Please check the format (+1234567890).");
@@ -217,7 +248,7 @@ export default function Register({ onSwitchToLogin }) {
     try {
       await confirmationResult.confirm(otp);
       
-      const response = await fetch("http://localhost:5000/auth/register", {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -258,7 +289,7 @@ export default function Register({ onSwitchToLogin }) {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/auth/register", {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -301,8 +332,13 @@ export default function Register({ onSwitchToLogin }) {
             <Sparkles className="w-10 h-10 text-green-500 animate-bounce" />
           </div>
           <h3 className="text-2xl font-bold text-slate-900 mb-2">Success!</h3>
-          <p className="text-sm text-slate-500 max-w-xs mb-8">
-            Your account has been successfully verified and registered. Welcome to Instaclone!
+          <p className="text-sm text-slate-500 max-w-xs mb-4">
+            {method === "email" 
+              ? "A verification link has been sent to your email. Please check your inbox and verify your email to activate your account."
+              : "Your account has been successfully verified and registered. Welcome to Instaclone!"}
+          </p>
+          <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-6">
+            Redirecting to login in <span className="text-pink-500 font-bold">{redirectCountdown}</span> seconds...
           </p>
           <button
             onClick={() => {

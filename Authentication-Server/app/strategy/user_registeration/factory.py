@@ -1,9 +1,9 @@
 from sqlalchemy.types import UserDefinedType
-from app.routes.strategy.user_registeration.strategy_enum import RegisterationType
-from app.routes.strategy.user_registeration.strategy.email_registeration import (
+from app.strategy.user_registeration.strategy_enum import RegisterationType
+from app.strategy.user_registeration.strategy.email_registeration import (
     EmailRegisteration,
 )
-from app.routes.strategy.user_registeration.strategy.phone_registeration import (
+from app.strategy.user_registeration.strategy.phone_registeration import (
     PhoneRegisteration,
 )
 

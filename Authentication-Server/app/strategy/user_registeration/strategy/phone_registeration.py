@@ -4,7 +4,7 @@ import logging
 from app.exceptions.business_exception import UserAlreadyExists, PhoneNumberAlreadyExists
 from app.kafka.events.user_registered import UserRegisteredEventBuilder
 from app.models.user import User
-from app.routes.strategy.user_registeration.interface import (
+from app.strategy.user_registeration.interface import (
     UserRegisterationInterface,
 )
 from app.utils.password import hash_password

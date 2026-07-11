@@ -1,14 +1,15 @@
 import React, { useState } from "react";
 import { Eye, EyeOff, Lock, User, Compass, Sparkles } from "lucide-react";
+import { API_BASE_URL } from "../../config";
 
-export default function Login({ onSwitchToRegister }) {
+export default function Login({ onSwitchToRegister, onSwitchToPasswordReset }) {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!identifier || !password) {
       setError("Please fill in all fields");
@@ -16,11 +17,48 @@ export default function Login({ onSwitchToRegister }) {
     }
     setError("");
     setIsLoading(true);
-    // Simulate login for frontend presentation
-    setTimeout(() => {
+
+    let loginType = "username";
+    let identifierVal = identifier;
+
+    if (identifier.includes("@")) {
+      loginType = "email";
+    } else if (/^\+?\d+$/.test(identifier)) {
+      loginType = "phone";
+      if (/^\d{10}$/.test(identifier)) {
+        identifierVal = `+91${identifier}`;
+      }
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          login_type: loginType,
+          identifier: identifierVal,
+          password: password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        localStorage.setItem("access_token", data.data.access_token);
+        localStorage.setItem("refresh_token", data.data.refresh_token);
+        alert("Logged in successfully!");
+        window.location.reload();
+      } else {
+        setError(data.message || (data.detail && data.detail[0]?.msg) || "Invalid login credentials.");
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("Failed to connect to the authentication server.");
+    } finally {
       setIsLoading(false);
-      alert("Logged in successfully! (Demo Mode)");
-    }, 1500);
+    }
   };
 
   return (
@@ -77,9 +115,13 @@ export default function Login({ onSwitchToRegister }) {
             <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
               Password
             </label>
-            <a href="#" className="text-xs text-pink-500 hover:text-pink-400 transition-colors font-medium">
+            <button
+              type="button"
+              onClick={onSwitchToPasswordReset}
+              className="text-xs text-pink-500 hover:text-pink-400 transition-colors font-medium focus:outline-none"
+            >
               Forgot?
-            </a>
+            </button>
           </div>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">

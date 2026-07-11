@@ -6,6 +6,9 @@ import uvicorn
 from app.kafka.registery import EventRegistry
 from app.kafka.topics import KafakTopics
 from app.kafka.handler.user_registered_handler import UserRegisteredHandler
+from app.kafka.handler.email_verified_handler import EmailVerifiedHandler
+from app.kafka.handler.password_reset_completed_handler import PasswordResetCompletedHandler
+from app.kafka.handler.password_reset_requested_handler import PasswordResetRequestedHandler
 from app.kafka.consumer_manager import ConsumerManager
 from app.kafka.consumers.notification_consumer import NotificationConsumer
 from app.kafka.kafka_client import kafka_client
@@ -20,10 +23,24 @@ registry = EventRegistry()
 registry.register(
     KafakTopics.USER_REGISTERED, UserRegisteredHandler(email_service)
 )
+registry.register(
+    KafakTopics.EMAIL_VERIFIED, EmailVerifiedHandler(email_service)
+)
+registry.register(
+    KafakTopics.USER_PASSWORD_RESET_COMPLETED, PasswordResetCompletedHandler(email_service)
+)
+registry.register(
+    KafakTopics.USER_PASSWORD_RESET_REQUESTED, PasswordResetRequestedHandler(email_service)
+)
 
 manager = ConsumerManager()
 consumer = kafka_client.create_consumer(
-    topic=KafakTopics.USER_REGISTERED,
+    topic=[
+        KafakTopics.USER_REGISTERED, 
+        KafakTopics.EMAIL_VERIFIED, 
+        KafakTopics.USER_PASSWORD_RESET_COMPLETED,
+        KafakTopics.USER_PASSWORD_RESET_REQUESTED
+    ],
     group_id="notification-service"
 )
 manager.register(NotificationConsumer(consumer, registry))

@@ -45,6 +45,7 @@ class __Settings(BaseSettings):
     SMTP_EMAIL: str
     SMTP_PASSWORD: str
     SMTP_TLS: bool
+    FRONTEND_URL: str = "http://localhost:5173"
 
     model_config = SettingsConfigDict(
         env_file=env_path,

@@ -5,7 +5,6 @@ from app.database.dependency import get_db
 from app.kafka.producer import KafkaProducer
 from app.repository.user_reposiory import UserRepository
 from app.service.authentication_service import AuthenticationService
-from app.service.user_service import UserService
 
 from app.core.redis import redis_client
 
@@ -35,8 +34,3 @@ def get_auth_service(
         kafka_producer=kafka_producer,
     )
 
-
-def get_user_service(
-    user_repository: UserRepository = Depends(get_user_repository),
-) -> UserService:
-    return UserService(user_repository)

@@ -75,9 +75,10 @@ class KafkaClient:
 
     def create_consumer(self, topic, group_id) -> PyKafkaConsumer:
         """Create and return a raw KafkaConsumer instance."""
+        topics = [topic] if isinstance(topic, str) else list(topic)
         try:
             return PyKafkaConsumer(
-                topic,
+                *topics,
                 bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
                 group_id=group_id,
                 value_deserializer=lambda v: EventDeserializer.deserialize(v),

@@ -11,17 +11,6 @@ class UserNotFound(ApplicationException):
             error_code="USER_NOT_FOUND",
         )
 
-
-class InvalidPassword(ApplicationException):
-
-    def __init__(self, message="Invalid password."):
-        super().__init__(
-            message=message,
-            status_code=HTTPStatus.BAD_REQUEST,
-            error_code="INVALID_PASSWORD",
-        )
-
-
 class UserAlreadyExists(ApplicationException):
 
     def __init__(self, message="User already exists."):
@@ -47,4 +36,59 @@ class EmailAlreadyExists(ApplicationException):
             message=message,
             status_code=HTTPStatus.CONFLICT,
             error_code="EMAIL_ALREADY_EXISTS"
+        )
+
+
+class InvalidVerificationCode(ApplicationException):
+
+    def __init__(self, message="Invalid or expired verification code."):
+        super().__init__(
+            message=message,
+            status_code=HTTPStatus.BAD_REQUEST,
+            error_code="INVALID_VERIFICATION_CODE",
+        )
+
+class RepeatedPassword(ApplicationException):
+
+    def __init__(self, message="New password cannot be the same as any of the last 3 passwords."):
+        super().__init__(
+            message=message,
+            status_code=HTTPStatus.BAD_REQUEST,
+            error_code="REPEATED_PASSWORD",
+        )
+
+class EmailNotFound(ApplicationException):
+
+    def __init__(self, message="Email address not found."):
+        super().__init__(
+            message=message,
+            status_code=HTTPStatus.NOT_FOUND,
+            error_code="EMAIL_NOT_FOUND",
+        )
+
+class EmailNotVerified(ApplicationException):
+
+    def __init__(self, message="Email address is not verified."):
+        super().__init__(
+            message=message,
+            status_code=HTTPStatus.BAD_REQUEST,
+            error_code="EMAIL_NOT_VERIFIED",
+        )
+
+class AccountNotVerified(ApplicationException):
+
+    def __init__(self, message="Account is not verified."):
+        super().__init__(
+            message=message,
+            status_code=HTTPStatus.BAD_REQUEST,
+            error_code="ACCOUNT_NOT_VERIFIED",
+        )
+
+class InvalidPassword(ApplicationException):
+
+    def __init__(self, message="Invalid password."):
+        super().__init__(
+            message=message,
+            status_code=HTTPStatus.UNAUTHORIZED,
+            error_code="INVALID_PASSWORD",
         )
