@@ -20,7 +20,9 @@ class PhoneRegisteration(UserRegisterationInterface):
         self.kafka = builder._kafka
         self.redis = builder._redis
         self.strategy_type = builder._strategy_type
-    async def register(self) -> dict:
+
+    
+    async def register(self):
         # Check if phone already exists
 
         logger.debug(f"verify phone details : {self.request_data}")
@@ -54,9 +56,4 @@ class PhoneRegisteration(UserRegisterationInterface):
         
         # response 
         
-        return {
-            "id": created_user.id,
-            "username": created_user.username,
-            "email": created_user.email,
-            "phone": created_user.phone,
-        }
+        return 

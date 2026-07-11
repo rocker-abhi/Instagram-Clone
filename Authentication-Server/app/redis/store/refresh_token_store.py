@@ -10,7 +10,7 @@ class RefreshTokenStore(RedisInterface):
 
     async def get(self, key: str) -> str | None:
         try:
-            return await self.redis_client.get(key)
+            return await self.redis_client.get("refresh_token:{key}")
         except Exception as e:
             raise InfrastructureException(service="Redis") from e
 
@@ -20,7 +20,7 @@ class RefreshTokenStore(RedisInterface):
         try:
             if expire is None:
                 expire = settings.REFRESH_TOKEN_TTL
-            await self.redis_client.set(key, value, ex=expire)
+            await self.redis_client.set(f"refresh_token:{key}", value, ex=expire)
         except Exception as e:
             raise InfrastructureException(service="Redis") from e
 

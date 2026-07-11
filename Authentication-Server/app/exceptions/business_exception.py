@@ -39,3 +39,12 @@ class PhoneNumberAlreadyExists(ApplicationException):
             status_code=HTTPStatus.CONFLICT,
             error_code="PHONE_NUMBER_ALREADY_EXISTS",
         )
+
+class EmailAlreadyExists(ApplicationException):
+
+    def __init__(self, message="Email already exists"):
+        super().__init__(
+            message=message,
+            status_code=HTTPStatus.CONFLICT,
+            error_code="EMAIL_ALREADY_EXISTS"
+        )

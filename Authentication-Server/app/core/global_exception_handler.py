@@ -2,6 +2,7 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from fastapi.exceptions import RequestValidationError
 from app.exceptions.base_exception import ApplicationException
 from app.exceptions.infrastructure_exception import InfrastructureException
 
@@ -9,6 +10,31 @@ logger = logging.getLogger(__name__)
 
 
 def register_exception_handlers(app: FastAPI):
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(
+        request: Request, exc: RequestValidationError
+    ):
+        errors = []
+        for error in exc.errors():
+            loc = " -> ".join(str(x) for x in error.get("loc", []))
+            msg = error.get("msg", "Unknown error")
+            errors.append(f"{loc}: {msg}")
+        
+        error_msg = "; ".join(errors)
+        logger.warning("Validation failed: %s", error_msg)
+        
+        return JSONResponse(
+            status_code=422,
+            content={
+                "success": False,
+                "message": f"Validation failed: {error_msg}",
+                "data": {
+                    "code": "VALIDATION_ERROR",
+                    "details": exc.errors()
+                },
+            },
+        )
 
     @app.exception_handler(ApplicationException)
     async def application_exception_handler(

@@ -83,13 +83,7 @@ class AuthenticationService:
     async def register(
         self, register_data: RegisterUserRequest
     ) -> RegisterUserResponseData:
-        # Check if username already exists
-        existing_username = await self.user_repository.get_user_by_username(
-            register_data.username
-        )
-        if existing_username:
-            raise UserAlreadyExists()
-
+    
         # Build registration strategy using builder
         strategy = (
             UserRegisterationBuilder()
@@ -101,11 +95,5 @@ class AuthenticationService:
             .build()
         )
 
-        result_dict = await UserRegisterationFactory.get_strategy(register_data.registeration_type, strategy).register()
-
-        return RegisterUserResponseData(
-            id=result_dict.get("id"),
-            username=result_dict.get("username"),
-            email=result_dict.get("email"),
-            phone=result_dict.get("phone"),
-        )
+        await UserRegisterationFactory.get_strategy(register_data.registeration_type, strategy).register()
+        return RegisterUserResponseData()

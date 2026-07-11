@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Request
 from app.routes.dependencies import get_auth_service
 from app.schemas.login_schema import LoginRequest, LoginResponse
 from app.service.authentication_service import AuthenticationService
+from app.schemas.register_schema import RegisterUserRequest, RegisterUserResponse
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -30,10 +31,6 @@ async def login(
     response_data = await auth_service.login(login_data, request_info)
 
     return LoginResponse(success=True, data=response_data)
-
-
-from app.schemas.register_schema import RegisterUserRequest, RegisterUserResponse
-
 
 @auth_router.post("/register", response_model=RegisterUserResponse)
 async def register_user(

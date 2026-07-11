@@ -56,10 +56,7 @@ class RegisterUserRequest(BaseModel):
 
 
 class RegisterUserResponseData(BaseModel):
-    id: UUID
-    username: str
-    email: str | None = None
-    phone: str | None = None
+    pass
 
 
 class RegisterUserResponse(BaseModel):

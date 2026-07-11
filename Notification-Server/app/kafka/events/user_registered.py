@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import uuid4
-from app.kafka.topics import KafakTopics
 
 
 @dataclass(frozen=True)
@@ -26,7 +25,7 @@ class UserRegisteredEventBuilder:
         self._email: str | None = None
         self._phone: str | None = None
         self._registration_method: str | None = None
-        self._event_type: str = KafakTopics.USER_REGISTERED
+        self._event_type: str = "user.registered"
         self._source: str = "authentication-server"
         self._otp: str | None = None
 

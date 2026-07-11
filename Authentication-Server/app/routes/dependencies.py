@@ -16,8 +16,8 @@ def get_user_repository(
     return UserRepository(session)
 
 
-def get_redis_client():
-    return redis_client.get_redis_client()
+async def get_redis_client():
+    return await redis_client.get_redis_client()
 
 
 def get_kafka_producer() -> KafkaProducer:
