@@ -183,7 +183,7 @@ export default function PasswordReset({ onSwitchToLogin, isResetFlow = false, us
       const phoneNumberWithPrefix = `+91${identifier}`;
       try {
         const response = await fetch(
-          `${API_BASE_URL}/auth/check-phone?phone=${encodeURIComponent(phoneNumberWithPrefix)}`
+          `${API_BASE_URL}/users/check-phone?phone=${encodeURIComponent(phoneNumberWithPrefix)}`
         );
         const data = await response.json();
 
@@ -252,7 +252,7 @@ export default function PasswordReset({ onSwitchToLogin, isResetFlow = false, us
       } else {
         // Treat as username!
         try {
-          const response = await fetch(`${API_BASE_URL}/auth/user-info?username=${encodeURIComponent(identifier)}`);
+          const response = await fetch(`${API_BASE_URL}/users/user-info?username=${encodeURIComponent(identifier)}`);
           const data = await response.json();
 
           if (response.ok && data.success) {

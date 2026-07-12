@@ -6,11 +6,8 @@ from app.schemas.login_schema import LoginRequest, LoginResponse, RefreshRequest
 from app.service.authentication_service import AuthenticationService
 from app.schemas.register_schema import RegisterUserRequest, RegisterUserResponse
 from app.schemas.reset_password_schema import ResetPasswordRequest, PasswordResetEmailRequest
-from app.schemas.user_schema import UserSearchRequest, UserSearchResponse
-from app.schemas.user_phone_schema import UserPhoneRequest, UserPhoneResponse
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
-user_router = APIRouter(prefix="/users", tags=["users"])
 
 logger = logging.getLogger(__name__)
 
@@ -58,13 +55,6 @@ async def verify_email(
     await auth_service.verify_email(user_id, code)
     return {"success": True, "message": "Email verified successfully."}
 
-@auth_router.get("/check-phone")
-async def check_phone(
-    phone: str,
-    auth_service: AuthenticationService = Depends(get_auth_service),
-):
-    exists = await auth_service.check_phone_exists(phone)
-    return {"success": True, "exists": exists}
 
 @auth_router.post("/reset-password")
 async def reset_password(
@@ -92,18 +82,6 @@ async def verify_reset_password(
     email = await auth_service.verify_password_reset_token(user_id, code)
     return {"success": True, "email": email, "message": "Password reset token is valid."}
 
-@auth_router.get("/user-info")
-async def get_user_info(
-    username: str,
-    auth_service: AuthenticationService = Depends(get_auth_service),
-):
-    user_info = await auth_service.get_user_info_by_username(username)
-    return {
-        "success": True, 
-        "email": user_info.email, 
-        "phone": user_info.phone,
-        "is_email_verified": user_info.is_email_verified
-    }
 
 @auth_router.post("/resend-verification-email")
 async def resend_verification_email(
@@ -144,25 +122,3 @@ async def refresh_token(
         refresh_data.refresh_token, request_info
     )
     return LoginResponse(success=True, message="Token refreshed successfully", data=response_data)
-
-@user_router.get("/search", response_model=UserSearchResponse)
-async def search_user(
-    params: UserSearchRequest = Depends(),
-    auth_service: AuthenticationService = Depends(get_auth_service),
-):
-    response = await auth_service.search_user(params.identifier)
-    return response
-
-@user_router.get("/phone", response_model=UserPhoneResponse)
-async def check_phone(
-    params: UserPhoneRequest = Depends(),
-    auth_service: AuthenticationService = Depends(get_auth_service),
-):
-    exists = await auth_service.check_phone_exists(params.phone)
-    if exists:
-        return UserPhoneResponse(
-            success=True, exists=True, message="Phone number already exists"
-        )
-    return UserPhoneResponse(
-        success=True, exists=False, message="Phone number is available"
-    )

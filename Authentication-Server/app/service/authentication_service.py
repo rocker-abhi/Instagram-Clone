@@ -222,9 +222,6 @@ class AuthenticationService:
         )
         self.kafka_producer.publish(topic=KafakTopics.EMAIL_VERIFIED, message=asdict(event))
 
-    async def check_phone_exists(self, phone: str) -> bool:
-        user = await self.user_repository.get_user_by_phone(phone)
-        return user is not None
 
     async def reset_password(self, reset_type: str, identifier: str, password: str) -> None:
         builder = (
@@ -278,11 +275,6 @@ class AuthenticationService:
             raise UserNotFound("User not found.")
         return user.email
 
-    async def get_user_info_by_username(self, username: str) -> User:
-        user = await self.user_repository.get_user_by_username(username)
-        if not user:
-            raise UserNotFound("User not found.")
-        return user
 
     async def resend_verification_email(self, email: str) -> None:
         user = await self.user_repository.get_user_by_email(email)
@@ -307,18 +299,4 @@ class AuthenticationService:
         )
         self.kafka_producer.publish(topic=KafakTopics.USER_REGISTERED, message=asdict(event))
 
-    async def search_user(self, identifier: str) -> UserSearchResponse:
-        user = await self.user_repository.get_user(identifier)
-        
-        if not user:
-            return UserSearchResponse(
-                success=True,
-                message="User not found",
-                data=UserSearchResponseData()
-            )
 
-        return UserSearchResponse(
-            success=True,
-            message="User found",
-            data=UserSearchResponseData(),
-        )

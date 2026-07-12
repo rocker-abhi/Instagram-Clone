@@ -10,7 +10,7 @@ from app.kafka.handler.email_verified_handler import EmailVerifiedHandler
 from app.kafka.handler.password_reset_completed_handler import PasswordResetCompletedHandler
 from app.kafka.handler.password_reset_requested_handler import PasswordResetRequestedHandler
 from app.kafka.consumer_manager import ConsumerManager
-from app.kafka.consumers.notification_consumer import NotificationConsumer
+from app.kafka.consumers.email_notification_consumer import EmailNotificationConsumer
 from app.kafka.kafka_client import kafka_client
 from app.core.logger import setup_logger
 from app.core.email import email_service
@@ -43,7 +43,7 @@ consumer = kafka_client.create_consumer(
     ],
     group_id="notification-service"
 )
-manager.register(NotificationConsumer(consumer, registry))
+manager.register(EmailNotificationConsumer(consumer, registry))
 
 
 @asynccontextmanager

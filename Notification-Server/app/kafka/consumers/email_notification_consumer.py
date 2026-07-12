@@ -1,7 +1,7 @@
 from app.kafka.consumer import BaseConsumer
 
 
-class NotificationConsumer(BaseConsumer):
+class EmailNotificationConsumer(BaseConsumer):
 
     def __init__(self, consumer, registry):
         super().__init__(

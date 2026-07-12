@@ -66,7 +66,7 @@ export default function App() {
   const isAuthActionPath = isVerifyEmailPath || isResetPasswordPath;
 
   return (
-    <div className={`min-h-screen bg-slate-50 text-slate-900 ${token && !isAuthActionPath ? "" : "flex flex-col items-center justify-center p-4"} font-sans relative overflow-hidden`}>
+    <div className={`min-h-screen ${token && !isAuthActionPath ? "bg-[#fafafa]" : "bg-slate-50"} text-slate-900 ${token && !isAuthActionPath ? "" : "flex flex-col items-center justify-center p-4"} font-sans relative overflow-hidden`}>
       {/* Dynamic Animated background blobs (only visible in auth screens) */}
       {(!token || isAuthActionPath) && (
         <>

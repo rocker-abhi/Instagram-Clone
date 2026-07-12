@@ -23,6 +23,15 @@ def get_kafka_producer() -> KafkaProducer:
     return KafkaProducer()
 
 
+from app.service.user_service import UserService
+
+
+def get_user_service(
+    user_repository: UserRepository = Depends(get_user_repository),
+) -> UserService:
+    return UserService(user_repository=user_repository)
+
+
 def get_auth_service(
     user_repository: UserRepository = Depends(get_user_repository),
     redis_client=Depends(get_redis_client),
@@ -33,6 +42,7 @@ def get_auth_service(
         redis_client=redis_client,
         kafka_producer=kafka_producer,
     )
+
 
 
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
