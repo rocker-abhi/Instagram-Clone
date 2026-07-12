@@ -16,8 +16,10 @@ from app.strategy.user_registeration.factory import UserRegisterationBuilder, Us
 
 from app.redis.factory.factory import get_store
 from app.redis.enum.store_enum import StoreEnums
-from app.exceptions.business_exception import InvalidVerificationCode, UserNotFound, RepeatedPassword, EmailNotFound, EmailNotVerified, AccountNotVerified, InvalidPassword
+from app.exceptions.business_exception import InvalidVerificationCode, UserNotFound, RepeatedPassword, EmailNotFound, EmailNotVerified, AccountNotVerified, InvalidPassword, InvalidSession, AlreadyLoggedIn
 from uuid import uuid4
+import json
+import uuid
 from app.kafka.events.user_password_reset_requested import UserPasswordResetRequestedEventBuilder
 from app.kafka.events.user_registered import UserRegisteredEventBuilder
 from app.utils.otp import generate_otp
@@ -64,19 +66,105 @@ class AuthenticationService:
         if user.email and not user.is_email_verified:
             raise AccountNotVerified("Account is not verified. Please verify your email before logging in.")
 
-        # Generate tokens
+        # Generate tokens and setup Redis session
         user_id_str = str(user.id)
+        sid = uuid.uuid4().hex
         access_token = create_access_token(
-            {"sub": user_id_str, "username": user.username}
+            {"sub": user_id_str, "username": user.username, "sid": sid}
         )
-        refresh_token = create_refresh_token({"sub": user_id_str})
+        refresh_token = create_refresh_token({"sub": user_id_str, "sid": sid})
 
+        # Store session details in Redis
+        session_store = get_store(self.redis_client, StoreEnums.SESSION)
+        
+        # Check if an active session already exists
+        existing_sessions = await session_store.get_user_sessions(user_id_str)
+        if existing_sessions:
+            if not login_data.force_logout:
+                raise AlreadyLoggedIn("User is already logged in on another device.")
+            else:
+                # Terminate existing sessions
+                await session_store.delete_all_user_sessions(user_id_str)
 
+        session_data = {
+            "user_id": user_id_str,
+            "username": user.username,
+            "refresh_token": refresh_token,
+            "ip_address": request_info.get("ip_address"),
+            "user_agent": request_info.get("user_agent"),
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await session_store.set(sid, json.dumps(session_data))
+        await session_store.add_user_session(user_id_str, sid)
 
         return LoginResponseData(
             access_token=access_token,
             refresh_token=refresh_token,
             token_type="Bearer",
+        )
+
+    async def logout(self, sid: str) -> None:
+        session_store = get_store(self.redis_client, StoreEnums.SESSION)
+        session_json = await session_store.get(sid)
+        if session_json:
+            session_data = json.loads(session_json)
+            user_id = session_data.get("user_id")
+            await session_store.delete(sid)
+            if user_id:
+                await session_store.remove_user_session(user_id, sid)
+
+    async def refresh_session(self, refresh_token: str, request_info: dict) -> LoginResponseData:
+        from app.utils.jwt import decode_token
+        try:
+            payload = decode_token(refresh_token)
+        except ValueError as e:
+            raise InvalidSession(str(e))
+        
+        user_id = payload.get("sub")
+        sid = payload.get("sid")
+        if not user_id or not sid:
+            raise InvalidSession("Invalid refresh token payload.")
+            
+        session_store = get_store(self.redis_client, StoreEnums.SESSION)
+        session_json = await session_store.get(sid)
+        if not session_json:
+            raise InvalidSession("Session has expired or has been revoked.")
+            
+        session_data = json.loads(session_json)
+        if session_data.get("refresh_token") != refresh_token:
+            raise InvalidSession("Refresh token mismatch or already used.")
+            
+        user = await self.user_repository.get_user_by_id(user_id)
+        if not user:
+            raise UserNotFound("User not found.")
+            
+        # Rotate refresh token
+        new_sid = uuid.uuid4().hex
+        new_access_token = create_access_token(
+            {"sub": user_id, "username": user.username, "sid": new_sid}
+        )
+        new_refresh_token = create_refresh_token({"sub": user_id, "sid": new_sid})
+        
+        # Remove old session
+        await session_store.delete(sid)
+        await session_store.remove_user_session(user_id, sid)
+        
+        # Save new session
+        new_session_data = {
+            "user_id": user_id,
+            "username": user.username,
+            "refresh_token": new_refresh_token,
+            "ip_address": request_info.get("ip_address"),
+            "user_agent": request_info.get("user_agent"),
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await session_store.set(new_sid, json.dumps(new_session_data))
+        await session_store.add_user_session(user_id, new_sid)
+        
+        return LoginResponseData(
+            access_token=new_access_token,
+            refresh_token=new_refresh_token,
+            token_type="Bearer"
         )
 
     async def register(

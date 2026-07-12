@@ -1,8 +1,8 @@
 import logging
 from fastapi import APIRouter, Depends, Request
 
-from app.routes.dependencies import get_auth_service
-from app.schemas.login_schema import LoginRequest, LoginResponse
+from app.routes.dependencies import get_auth_service, get_current_user
+from app.schemas.login_schema import LoginRequest, LoginResponse, RefreshRequest
 from app.service.authentication_service import AuthenticationService
 from app.schemas.register_schema import RegisterUserRequest, RegisterUserResponse
 from app.schemas.reset_password_schema import ResetPasswordRequest, PasswordResetEmailRequest
@@ -112,6 +112,38 @@ async def resend_verification_email(
 ):
     await auth_service.resend_verification_email(email_data.email)
     return {"success": True, "message": "Verification link sent successfully."}
+
+@auth_router.post("/logout")
+async def logout(
+    current_user: dict = Depends(get_current_user),
+    auth_service: AuthenticationService = Depends(get_auth_service),
+):
+    sid = current_user.get("sid")
+    await auth_service.logout(sid)
+    return {"success": True, "message": "Logged out successfully."}
+
+@auth_router.get("/me")
+async def get_me(current_user: dict = Depends(get_current_user)):
+    return {"success": True, "user": current_user}
+
+
+@auth_router.post("/refresh", response_model=LoginResponse)
+async def refresh_token(
+    refresh_data: RefreshRequest,
+    request: Request,
+    auth_service: AuthenticationService = Depends(get_auth_service),
+):
+    user_agent = request.headers.get("user-agent", "")
+    ip_address = request.client.host if request.client else None
+    request_info = {
+        "ip_address": ip_address,
+        "user_agent": user_agent,
+        "browser": user_agent.split(" ")[0] if user_agent else "Unknown",
+    }
+    response_data = await auth_service.refresh_session(
+        refresh_data.refresh_token, request_info
+    )
+    return LoginResponse(success=True, message="Token refreshed successfully", data=response_data)
 
 @user_router.get("/search", response_model=UserSearchResponse)
 async def search_user(

@@ -92,3 +92,30 @@ class InvalidPassword(ApplicationException):
             status_code=HTTPStatus.UNAUTHORIZED,
             error_code="INVALID_PASSWORD",
         )
+
+class InvalidSession(ApplicationException):
+
+    def __init__(self, message="Session is invalid or has been revoked."):
+        super().__init__(
+            message=message,
+            status_code=HTTPStatus.UNAUTHORIZED,
+            error_code="INVALID_SESSION",
+        )
+
+class SessionExpired(ApplicationException):
+
+    def __init__(self, message="Session has expired."):
+        super().__init__(
+            message=message,
+            status_code=HTTPStatus.UNAUTHORIZED,
+            error_code="SESSION_EXPIRED",
+        )
+
+class AlreadyLoggedIn(ApplicationException):
+
+    def __init__(self, message="User is already logged in on another device."):
+        super().__init__(
+            message=message,
+            status_code=HTTPStatus.CONFLICT,
+            error_code="ALREADY_LOGGED_IN",
+        )

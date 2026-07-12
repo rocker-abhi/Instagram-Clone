@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Login from "./module/auth/Login";
 import Register from "./module/auth/Register";
 import VerifyEmail from "./module/auth/VerifyEmail";
 import PasswordReset from "./module/auth/PasswordReset";
 import HomePage from "./module/home/HomePage";
+import { API_BASE_URL } from "./config";
 
 export default function App() {
   const isVerifyEmailPath = window.location.pathname === "/verify-email";
@@ -11,11 +12,51 @@ export default function App() {
   const [token, setToken] = useState(localStorage.getItem("access_token"));
   const [view, setView] = useState("login"); // "login", "register", or "forgot_password"
 
+  useEffect(() => {
+    if (!token || isVerifyEmailPath || isResetPasswordPath) return;
+
+    const verifySession = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        if (!response.ok) {
+          if (response.status === 401) {
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("refresh_token");
+            setToken(null);
+            setView("login");
+          }
+        }
+      } catch (err) {
+        console.error("Session verification failed:", err);
+      }
+    };
+
+    verifySession();
+  }, [token, isVerifyEmailPath, isResetPasswordPath]);
+
   const queryParams = new URLSearchParams(window.location.search);
   const userIdParam = queryParams.get("user_id");
   const codeParam = queryParams.get("code");
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const accToken = localStorage.getItem("access_token");
+    if (accToken) {
+      try {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${accToken}`
+          }
+        });
+      } catch (err) {
+        console.error("Backend logout error:", err);
+      }
+    }
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
     setToken(null);
