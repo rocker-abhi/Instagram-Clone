@@ -49,7 +49,7 @@ class UserRepository:
         except Exception as e:
             raise InfrastructureException(service="Database") from e
 
-    async def create_user(self, user: User) -> User:
+    async def create_user(self, user: User, commit: bool = True) -> User:
         try:
             self.session.add(user)
             await self.session.flush()
@@ -61,11 +61,13 @@ class UserRepository:
             )
             self.session.add(history)
 
-            await self.session.commit()
-            await self.session.refresh(user)
+            if commit:
+                await self.session.commit()
+                await self.session.refresh(user)
             return user
         except Exception as e:
-            await self.session.rollback()
+            if commit:
+                await self.session.rollback()
             raise InfrastructureException(service="Database") from e
 
     async def get_password_history(self, user_id) -> list[PasswordHistory]:

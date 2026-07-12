@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package user.v1;
+
+service UserService {
+
+  rpc CreateUserProfile(CreateUserProfileRequest)
+      returns (CreateUserProfileResponse);
+
+  rpc GetUserProfile(GetUserProfileRequest)
+      returns (UserProfileResponse);
+}
+
+message CreateUserProfileRequest {
+
+  string user_id = 1;
+
+  string username = 2;
+  
+}
+
+message CreateUserProfileResponse {
+
+  bool success = 1;
+
+  string message = 2;
+}
+
+message GetUserProfileRequest {
+
+  string user_id = 1;
+}
+
+message UserProfileResponse {
+
+  string user_id = 1;
+
+  string username = 2;
+
+  string display_name = 3;
+
+  string bio = 4;
+
+  string profile_picture = 5;
+
+  bool is_private = 6;
+}

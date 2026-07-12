@@ -8,6 +8,8 @@ from app.strategy.user_registeration.interface import (
     UserRegisterationInterface,
 )
 from app.utils.password import hash_password
+from app.utils.jwt import create_access_token
+from app.grpc.client.user_client import UserServiceClient
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +53,29 @@ class PhoneRegisteration(UserRegisterationInterface):
         )
 
         logger.debug(f"verify user details : {user}")
-        created_user = await self.user_repository.create_user(user)
+        created_user = await self.user_repository.create_user(user, commit=False)
         logger.debug(f"verify created user details : {created_user}")
+
+
+
+        access_token = create_access_token(
+            {"sub": str(created_user.id), "username": created_user.username}
+        )
+
+        try:
+            user_client = UserServiceClient()
+            user_client.create_user_profile(
+                user_id=str(created_user.id),
+                username=created_user.username,
+                token=access_token
+            )
+            # Commit changes to the DB
+            await self.user_repository.session.commit()
+            await self.user_repository.session.refresh(created_user)
+        except Exception as grpc_err:
+            logger.error("Failed to create profile via gRPC User-Service. Rolling back user creation. Error: %s", str(grpc_err))
+            await self.user_repository.session.rollback()
+            raise
         
         # response 
         

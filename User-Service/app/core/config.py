@@ -13,6 +13,11 @@ class __Settings(BaseSettings):
     PORT: int
     DATABASE_URL: str
     SERVICE_NAME: str
+    JWT_SECRET_KEY: str
+    USER_SERVICE_HOST_GRPC: str
+    USER_SERVICE_PORT_GRPC: int
+    AUTH_SERVICE_HOST_GRPC: str
+    AUTH_SERVICE_PORT_GRPC: int
 
     model_config = SettingsConfigDict(
         env_file=env_path,

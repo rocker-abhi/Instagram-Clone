@@ -39,6 +39,11 @@ class __Settings(BaseSettings):
     KAFKA_SASL_PLAIN_USERNAME: str
     KAFKA_SASL_PLAIN_PASSWORD: str
 
+    USER_SERVICE_HOST_GRPC: str
+    USER_SERVICE_PORT_GRPC: int
+    AUTH_SERVICE_HOST_GRPC: str
+    AUTH_SERVICE_PORT_GRPC: int
+
     model_config = SettingsConfigDict(
         env_file=env_path,
         extra="ignore",

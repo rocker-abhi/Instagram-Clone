@@ -11,6 +11,9 @@ from app.core.request_handler import register_middleware
 from app.core.database import db
 from app.core.redis import redis_client
 from app.kafka.kafka_client import kafka_client
+from app.grpc.server.server import start_grpc, stop_grpc
+from app.routes import api_router
+from fastapi.middleware.cors import CORSMiddleware
 
 # Initialize logging configuration at startup
 setup_logger()
@@ -45,9 +48,18 @@ async def lifespan(app: FastAPI):
         logger.critical("Kafka connection failed: %s", str(e))
         raise SystemExit("Fatal: Kafka is unreachable.") from e
 
+    # 4. Start gRPC Server
+    try:
+        await start_grpc()
+    except Exception as e:
+        logger.critical("Failed to start gRPC server: %s", str(e))
+        raise SystemExit("Fatal: gRPC server failed to start.") from e
+
     yield
 
     logger.info("Application is shutting down...")
+    await stop_grpc()
+
     await db.close()
     logger.info("Database connection closed.")
     await redis_client.close()
@@ -56,9 +68,7 @@ async def lifespan(app: FastAPI):
     logger.info("Kafka connection closed.")
 
 
-from app.routes import api_router
 
-from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title=settings.APP_NAME,

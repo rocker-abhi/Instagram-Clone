@@ -9,6 +9,9 @@ from app.core.global_exception_handler import register_exception_handlers
 from app.core.logger import setup_logger
 from app.core.request_handler import register_middleware
 from app.core.database import db
+from app.grpc.server.server import start_grpc, stop_grpc
+from app.routes import api_router
+from fastapi.middleware.cors import CORSMiddleware
 
 # Initialize logging configuration at startup
 setup_logger()
@@ -28,16 +31,23 @@ async def lifespan(app: FastAPI):
         logger.critical("Database connection failed: %s", str(e))
         raise SystemExit("Fatal: Database is unreachable.") from e
 
+    # Start async gRPC server
+    try:
+        await start_grpc()
+    except Exception as e:
+        logger.critical("Failed to start gRPC server: %s", str(e))
+        raise SystemExit("Fatal: gRPC server failed to start.") from e
+
     yield
 
     logger.info("Application is shutting down...")
+    await stop_grpc()
+
     await db.close()
     logger.info("Database connection closed.")
 
 
-from app.routes import api_router
 
-from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title=settings.APP_NAME,
