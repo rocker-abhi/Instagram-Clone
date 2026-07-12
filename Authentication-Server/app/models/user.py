@@ -76,7 +76,7 @@ class User(Base):
             "email IS NOT NULL OR phone IS NOT NULL",
             name="chk_email_or_phone",
         ),
-        {"schema": "auth"},
+        {"schema": "auth_schema"},
     )
 
     # Relationships

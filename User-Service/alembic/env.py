@@ -32,9 +32,9 @@ target_metadata = Base.metadata
 
 
 def include_object(object, name, type_, reflected, compare_to):
-    """Filter database objects to only include tables in the auth_schema schema."""
+    """Filter database objects to only include tables in the user_schema schema."""
     if type_ == "table":
-        return object.schema == "auth_schema"
+        return object.schema == "user_schema"
     return True
 
 
@@ -58,7 +58,7 @@ def run_migrations_offline() -> None:
         dialect_opts={"paramstyle": "named"},
         include_schemas=True,
         include_object=include_object,
-        version_table_schema="auth_schema",
+        version_table_schema="user_schema",
     )
 
     with context.begin_transaction():
@@ -71,11 +71,11 @@ def do_run_migrations(connection: Connection) -> None:
         target_metadata=target_metadata,
         include_schemas=True,
         include_object=include_object,
-        version_table_schema="auth_schema",
+        version_table_schema="user_schema",
     )
 
     with context.begin_transaction():
-        connection.execute(text("CREATE SCHEMA IF NOT EXISTS auth_schema"))
+        connection.execute(text("CREATE SCHEMA IF NOT EXISTS user_schema"))
         context.run_migrations()
 
 

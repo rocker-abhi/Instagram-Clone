@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 class LoginHistory(Base):
     __tablename__ = "login_history"
-    __table_args__ = {"schema": "auth"}
+    __table_args__ = {"schema": "auth_schema"}
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -25,7 +25,7 @@ class LoginHistory(Base):
     )
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("auth.users.id", ondelete="SET NULL"),
+        ForeignKey("auth_schema.users.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
