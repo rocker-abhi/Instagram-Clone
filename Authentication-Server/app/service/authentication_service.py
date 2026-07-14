@@ -45,6 +45,19 @@ class AuthenticationService:
         self.redis_client = redis_client
         self.kafka_producer = kafka_producer
 
+    async def _fetch_username(self, user_id: str) -> str:
+        import asyncio
+        try:
+            from app.grpc.client.user_client import UserServiceClient
+            from app.utils.jwt import create_access_token
+            # Generate a system token valid for 1 minute
+            system_token = create_access_token({"sub": "system"}, expires_delta=timedelta(minutes=1))
+            user_client = UserServiceClient()
+            profile = await asyncio.to_thread(user_client.get_user_profile, user_id, system_token)
+            return profile.username or ""
+        except Exception:
+            return ""
+
     async def login(
         self, login_data: LoginRequest, request_info: dict = None
     ) -> LoginResponseData:
@@ -54,7 +67,8 @@ class AuthenticationService:
         elif login_data.login_type == "phone":
             user = await self.user_repository.get_user_by_phone(login_data.identifier)
         else:
-            user = await self.user_repository.get_user_by_username(login_data.identifier)
+            user_id = await self.user_repository.get_user_id_by_username(login_data.identifier)
+            user = await self.user_repository.get_user_by_id(user_id) if user_id else None
 
         if not user:
             raise UserNotFound("User not found.")
@@ -69,8 +83,9 @@ class AuthenticationService:
         # Generate tokens and setup Redis session
         user_id_str = str(user.id)
         sid = uuid.uuid4().hex
+        username = await self._fetch_username(user_id_str)
         access_token = create_access_token(
-            {"sub": user_id_str, "username": user.username, "sid": sid}
+            {"sub": user_id_str, "username": username, "sid": sid}
         )
         refresh_token = create_refresh_token({"sub": user_id_str, "sid": sid})
 
@@ -88,7 +103,7 @@ class AuthenticationService:
 
         session_data = {
             "user_id": user_id_str,
-            "username": user.username,
+            "username": username,
             "refresh_token": refresh_token,
             "ip_address": request_info.get("ip_address"),
             "user_agent": request_info.get("user_agent"),
@@ -140,8 +155,9 @@ class AuthenticationService:
             
         # Rotate refresh token
         new_sid = uuid.uuid4().hex
+        username = await self._fetch_username(user_id)
         new_access_token = create_access_token(
-            {"sub": user_id, "username": user.username, "sid": new_sid}
+            {"sub": user_id, "username": username, "sid": new_sid}
         )
         new_refresh_token = create_refresh_token({"sub": user_id, "sid": new_sid})
         
@@ -152,7 +168,7 @@ class AuthenticationService:
         # Save new session
         new_session_data = {
             "user_id": user_id,
-            "username": user.username,
+            "username": username,
             "refresh_token": new_refresh_token,
             "ip_address": request_info.get("ip_address"),
             "user_agent": request_info.get("user_agent"),
@@ -216,7 +232,7 @@ class AuthenticationService:
         event = (
             EmailVerifiedEventBuilder()
             .set_user_id(user.id)
-            .set_username(user.username)
+            .set_username(await self._fetch_username(str(user.id)))
             .set_email(user.email)
             .build()
         )
@@ -256,7 +272,7 @@ class AuthenticationService:
         event = (
             UserPasswordResetRequestedEventBuilder()
             .set_user_id(user.id)
-            .set_username(user.username)
+            .set_username(await self._fetch_username(str(user.id)))
             .set_email(user.email)
             .set_token(token)
             .build()
@@ -293,7 +309,7 @@ class AuthenticationService:
             .set_phone(user.phone)
             .set_registration_method("email")
             .set_user_id(user.id)
-            .set_username(user.username)
+            .set_username(await self._fetch_username(str(user.id)))
             .set_otp(otp)
             .build()
         )

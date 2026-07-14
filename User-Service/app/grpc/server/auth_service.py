@@ -79,3 +79,20 @@ class UserGrpcService(user_pb2_grpc.UserServiceServicer):
             profile_picture=profile.profile_picture_url or "",
             is_private=is_private
         )
+
+    async def GetUserIdByUsername(self, request, context):
+        logger.info("gRPC GetUserIdByUsername received: username=%s", request.username)
+        try:
+            async with db.session_factory() as session:
+                service = AuthGrpcService(session)
+                user_id = await service.get_user_id_by_username(request.username)
+        except InfrastructureException as e:
+            logger.error("Database infrastructure error in GetUserIdByUsername: %s", str(e))
+            context.abort(grpc.StatusCode.UNAVAILABLE, f"User database error: {e.message}")
+        except Exception as e:
+            logger.error("Unexpected error in GetUserIdByUsername: %s", str(e))
+            context.abort(grpc.StatusCode.INTERNAL, f"Internal gRPC server error: {str(e)}")
+
+        if user_id:
+            return user_pb2.GetUserIdByUsernameResponse(user_id=str(user_id), exists=True)
+        return user_pb2.GetUserIdByUsernameResponse(user_id="", exists=False)

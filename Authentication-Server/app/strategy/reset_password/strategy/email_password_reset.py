@@ -51,7 +51,7 @@ class EmailPasswordReset(UserResetPasswordInterface):
         event = (
                 EmailUserPasswordResetEventBuilder()
                 .set_user_id(user.id)
-                .set_username(user.username)
+                .set_username("")
                 .set_email(user.email)
                 .build()
             )

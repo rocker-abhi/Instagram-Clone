@@ -35,3 +35,10 @@ class AuthGrpcService:
 
         privacy = await self.repository.get_privacy_settings(profile.id)
         return profile, privacy
+
+    async def get_user_id_by_username(self, username: str) -> uuid.UUID | None:
+        """
+        Fetch user_id corresponding to the given username.
+        """
+        profile = await self.repository.get_profile_by_username(username)
+        return profile.user_id if profile else None

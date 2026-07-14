@@ -22,7 +22,8 @@ class __Settings(BaseSettings):
     REFRESH_TOKEN_TTL: int
     EMAIL_VERIFICATION_TTL: int
 
-    JWT_SECRET_KEY: str
+    JWT_PRIVATE_KEY_PATH: str = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "shared", "keys", "jwt_private_key.pem"))
+    JWT_PUBLIC_KEY_PATH: str = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "shared", "keys", "jwt_public_key.pem"))
     ACCESS_TOKEN_EXPIRE_MINUTES: int
 
     HOST: str

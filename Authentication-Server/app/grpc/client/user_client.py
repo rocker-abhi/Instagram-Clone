@@ -70,3 +70,20 @@ class UserServiceClient:
         except grpc.RpcError as e:
             logger.error("gRPC GetUserProfile failed: %s", e.details() or str(e))
             raise InfrastructureException(service="gRPC : User", message=f"GetUserProfile failed: {e.details() or str(e)}")
+
+    def get_user_id_by_username(self, username: str, token: str) -> user_pb2.GetUserIdByUsernameResponse:
+        """
+        Call GetUserIdByUsername RPC.
+        """
+        logger.info("Calling GetUserIdByUsername for username=%s via gRPC", username)
+        metadata = self._get_metadata(token)
+
+        try:
+            with grpc.insecure_channel(self.target) as channel:
+                stub = user_pb2_grpc.UserServiceStub(channel)
+                request = user_pb2.GetUserIdByUsernameRequest(username=username)
+                response = stub.GetUserIdByUsername(request, metadata=metadata, timeout=5.0)
+                return response
+        except grpc.RpcError as e:
+            logger.error("gRPC GetUserIdByUsername failed: %s", e.details() or str(e))
+            raise InfrastructureException(service="gRPC : User", message=f"GetUserIdByUsername failed: {e.details() or str(e)}")

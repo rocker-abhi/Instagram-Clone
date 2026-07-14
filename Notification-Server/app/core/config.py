@@ -22,7 +22,7 @@ class __Settings(BaseSettings):
     REFRESH_TOKEN_TTL: int
     EMAIL_VERIFICATION_TTL: int
 
-    JWT_SECRET_KEY: str
+    JWT_SECRET_KEY: str = ""
     ACCESS_TOKEN_EXPIRE_MINUTES: int
 
     HOST: str

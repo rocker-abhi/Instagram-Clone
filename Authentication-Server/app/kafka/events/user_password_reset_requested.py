@@ -51,7 +51,7 @@ class UserPasswordResetRequestedEventBuilder:
         return self
 
     def build(self) -> UserPasswordResetRequestedEvent:
-        if not self._user_id or not self._username or not self._email or not self._token:
+        if self._user_id is None or self._username is None or self._email is None or self._token is None:
             raise ValueError(
                 "user_id, username, email, and token are required to build UserPasswordResetRequestedEvent"
             )

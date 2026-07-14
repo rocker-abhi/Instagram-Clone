@@ -36,17 +36,10 @@ class PhoneRegisteration(UserRegisterationInterface):
         if existing_phone:
             raise PhoneNumberAlreadyExists()
 
-        existing_username = await self.user_repository.get_user_by_username(
-            self.request_data.username
-        )
-        if existing_username:
-            raise UserAlreadyExists()
-
         # Hash password and create user
         pwd_hash = hash_password(self.request_data.password)
 
         user = User(
-            username=self.request_data.username,
             password_hash=pwd_hash,
             phone=self.request_data.phone,
             is_phone_verified=True
@@ -56,17 +49,15 @@ class PhoneRegisteration(UserRegisterationInterface):
         created_user = await self.user_repository.create_user(user, commit=False)
         logger.debug(f"verify created user details : {created_user}")
 
-
-
         access_token = create_access_token(
-            {"sub": str(created_user.id), "username": created_user.username}
+            {"sub": str(created_user.id), "username": self.request_data.username}
         )
 
         try:
             user_client = UserServiceClient()
             user_client.create_user_profile(
                 user_id=str(created_user.id),
-                username=created_user.username,
+                username=self.request_data.username,
                 token=access_token
             )
             # Commit changes to the DB

@@ -57,24 +57,16 @@ class EmailRegisteration(UserRegisterationInterface):
                     .set_phone(self.request_data.phone)
                     .set_registration_method(self.strategy_type)
                     .set_user_id(existing_email.id)
-                    .set_username(existing_email.username)
+                    .set_username(self.request_data.username)
                     .set_otp(otp)
                     .build()
                 )
                 self.kafka.publish(topic=KafakTopics.USER_REGISTERED, message=asdict(event))
                 return
 
-        existing_user = await self.user_repository.get_user_by_username(
-            self.request_data.username
-        )
-        if existing_user:
-            logger.debug(f"User Already Exists : info -> {existing_user}")
-            raise UserAlreadyExists()
-
         pwd_hash = hash_password(self.request_data.password)
 
         user = User(
-            username=self.request_data.username,
             password_hash=pwd_hash,
             email=self.request_data.email,
         )
@@ -82,17 +74,15 @@ class EmailRegisteration(UserRegisterationInterface):
         created_user = await self.user_repository.create_user(user, commit=False)
         logger.debug("User successfully created (uncommitted).")
 
-
-
         access_token = create_access_token(
-            {"sub": str(created_user.id), "username": created_user.username}
+            {"sub": str(created_user.id), "username": self.request_data.username}
         )
 
         try:
             user_client = UserServiceClient()
             user_client.create_user_profile(
                 user_id=str(created_user.id),
-                username=created_user.username,
+                username=self.request_data.username,
                 token=access_token
             )
             # Commit changes to the DB
@@ -112,7 +102,6 @@ class EmailRegisteration(UserRegisterationInterface):
         await redis_store.set(str(user.id), str(otp))
         logger.debug("Storing OTP in the redis store.")
 
-        
         try:
             # publish an event
             event = (
@@ -121,7 +110,7 @@ class EmailRegisteration(UserRegisterationInterface):
                 .set_phone(self.request_data.phone)
                 .set_registration_method(self.strategy_type)
                 .set_user_id(created_user.id)
-                .set_username(created_user.username)
+                .set_username(self.request_data.username)
                 .set_otp(otp)
                 .build()
             )

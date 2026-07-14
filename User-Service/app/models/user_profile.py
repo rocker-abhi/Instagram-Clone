@@ -51,10 +51,10 @@ class UserProfile(Base):
         nullable=True,
         comment="Instagram-style bio biography status text (max 150 chars)"
     )
-    profile_picture_url: Mapped[str | None] = mapped_column(
-        String(1000),
+    profile_picture_key: Mapped[str | None] = mapped_column(
+        String(500),
         nullable=True,
-        comment="URL path pointing to avatar image assets stored in MinIO storage"
+        comment="MinIO object key for the user avatar image (e.g. users/{uuid}/avatar.jpg)"
     )
     website: Mapped[str | None] = mapped_column(
         String(255),

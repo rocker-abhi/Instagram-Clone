@@ -45,7 +45,7 @@ class EmailVerifiedEventBuilder:
         return self
 
     def build(self) -> EmailVerifiedEvent:
-        if not self._user_id or not self._username or not self._email:
+        if self._user_id is None or self._username is None or self._email is None:
             raise ValueError(
                 "user_id, username, and email are required to build EmailVerifiedEvent"
             )

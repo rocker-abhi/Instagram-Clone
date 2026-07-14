@@ -5,8 +5,11 @@ Below is the list of active services and servers running in the Instagram Clone 
 | Service Name | Default IP / Host | Port | Type / Protocol | Description / Notes |
 | :--- | :--- | :--- | :--- | :--- |
 | **Instaclone Frontend** | `localhost` | `5173` | HTTP (Web) | React + Vite + Tailwind CSS v4 development server |
-| **Authentication Server** | `127.0.0.1` / `localhost` | `5000` | HTTP (REST) | FastAPI Auth gateway backend service (defined in `.env`) |
-| **Notification Server** | `127.0.0.1` / `localhost` | `5001` | HTTP (REST) | FastAPI background worker listening to Kafka events (defined in `main.py`) |
+| **Authentication Server** | `127.0.0.1` / `localhost` | `5000` | HTTP (REST) | FastAPI Auth gateway backend service |
+| **Authentication gRPC Service** | `127.0.0.1` / `localhost` | `50050` | gRPC | Auth gRPC coordination hook |
+| **User Service (REST)** | `127.0.0.1` / `localhost` | `6001` | HTTP (REST) | FastAPI User profile & relationship service (updated from port 6000) |
+| **User Service (gRPC)** | `127.0.0.1` / `localhost` | `50051` | gRPC | gRPC Server handling profile synch and verification |
+| **Notification Server** | `127.0.0.1` / `localhost` | `5001` | HTTP (REST) | FastAPI background worker listening to Kafka events |
 | **Redis Server** | `localhost` | `6379` | Redis TCP | Dockerized Redis container (`my-redis-server`) |
 | **Kafka Broker** | `localhost` | `9092` | SASL_PLAINTEXT | Apache Kafka messaging broker container (`kafka`) |
 | **Kafka UI Console** | `localhost` | `8080` | HTTP (Web) | UI dashboard for managing topics & messages (`kafka-ui`) |

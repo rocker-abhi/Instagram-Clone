@@ -9,6 +9,9 @@ service UserService {
 
   rpc GetUserProfile(GetUserProfileRequest)
       returns (UserProfileResponse);
+
+  rpc GetUserIdByUsername(GetUserIdByUsernameRequest)
+      returns (GetUserIdByUsernameResponse);
 }
 
 message CreateUserProfileRequest {
@@ -44,4 +47,13 @@ message UserProfileResponse {
   string profile_picture = 5;
 
   bool is_private = 6;
+}
+
+message GetUserIdByUsernameRequest {
+  string username = 1;
+}
+
+message GetUserIdByUsernameResponse {
+  string user_id = 1;
+  bool exists = 2;
 }

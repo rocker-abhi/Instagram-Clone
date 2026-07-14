@@ -1,7 +1,8 @@
-from sqlalchemy import select
+from sqlalchemy import select, text
 from app.exceptions.infrastructure_exception import InfrastructureException
 from app.models.user import User
 from app.models.password_history import PasswordHistory
+import uuid
 
 
 class UserRepository:
@@ -9,9 +10,24 @@ class UserRepository:
     def __init__(self, session):
         self.session = session
 
+    async def get_user_id_by_username(self, username: str) -> uuid.UUID | None:
+        import asyncio
+        from app.grpc.client.user_client import UserServiceClient
+        from app.utils.jwt import create_access_token
+        from datetime import timedelta
+        try:
+            system_token = create_access_token({"sub": "system"}, expires_delta=timedelta(minutes=1))
+            user_client = UserServiceClient()
+            response = await asyncio.to_thread(user_client.get_user_id_by_username, username, system_token)
+            if response.exists:
+                return uuid.UUID(response.user_id)
+            return None
+        except Exception as e:
+            raise InfrastructureException(service="gRPC") from e
+
     async def get_user(self, identifier: str) -> User | None:
         try:
-            stmt = select(User).where(User.username.ilike(f"%{identifier}%"))
+            stmt = select(User).where((User.email == identifier) | (User.phone == identifier))
             result = await self.session.execute(stmt)
             return result.scalar_one_or_none()
         except Exception as e:
@@ -28,14 +44,6 @@ class UserRepository:
     async def get_user_by_phone(self, phone: str) -> User | None:
         try:
             stmt = select(User).where(User.phone == phone)
-            result = await self.session.execute(stmt)
-            return result.scalar_one_or_none()
-        except Exception as e:
-            raise InfrastructureException(service="Database") from e
-
-    async def get_user_by_username(self, username: str) -> User | None:
-        try:
-            stmt = select(User).where(User.username == username)
             result = await self.session.execute(stmt)
             return result.scalar_one_or_none()
         except Exception as e:

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Mail, Phone, Lock, User, UserCheck, Shield, Sparkles, KeyRound } from "lucide-react";
 import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 import { auth } from "../../firebase";
-import { API_BASE_URL } from "../../config";
+import { API_BASE_URL, USER_API_BASE_URL } from "../../config";
 
 export default function Register({ onSwitchToLogin }) {
   const [method, setMethod] = useState("email"); // "email" or "phone"
@@ -77,11 +77,11 @@ export default function Register({ onSwitchToLogin }) {
     const delayDebounceFn = setTimeout(async () => {
       try {
         const response = await fetch(
-          `${API_BASE_URL}/users/search?identifier=${username}`
+          `${USER_API_BASE_URL}/user-profile/check-username?username=${username}`
         );
         const data = await response.json();
-        if (data.success) {
-          if (data.message === "User found") {
+        if (data.success && data.data) {
+          if (!data.data.available) {
             setUsernameStatus("taken");
           } else {
             setUsernameStatus("available");

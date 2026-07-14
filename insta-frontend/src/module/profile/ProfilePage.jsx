@@ -1,23 +1,69 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Grid, Bookmark, User, Heart, MessageCircle, Settings, 
   MoreHorizontal, Smile, Send, Bookmark as BookmarkIcon,
   Sparkles, ShieldCheck, Link2
 } from "lucide-react";
+import { USER_API_BASE_URL } from "../../config";
+import EditProfilePage from "./EditProfilePage";
 
-export default function ProfilePage({ posts }) {
+export default function ProfilePage({ posts, token }) {
   const [activeTab, setActiveTab] = useState("posts");
   const [selectedPost, setSelectedPost] = useState(null);
   const [commentInputs, setCommentInputs] = useState({});
+  const [isEditing, setIsEditing] = useState(false);
 
-  const userStats = {
-    username: "current_user",
-    fullName: "Abhishek",
-    bio: "Full Stack Engineer & Designer ✨\nCrafting pixel-perfect web experiences.\nBuilding the future of social networks.",
-    website: "github.com/rocker-abhi",
-    followers: 1420,
-    following: 382
+  // ── Real profile data from GET /user-profile/portfolio ─────────────────────────────
+  const [profile, setProfile] = useState({
+    username: "",
+    display_name: "",
+    bio: "",
+    website: "",
+    profile_picture_url: "",
+    followers_count: 0,
+    following_count: 0,
+  });
+  const [profileLoading, setProfileLoading] = useState(true);
+
+  const fetchProfile = async () => {
+    if (!token) return;
+    setProfileLoading(true);
+    try {
+      const res = await fetch(
+        `${USER_API_BASE_URL}/user-profile/portfolio`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.data) setProfile(data.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch /user-profile/portfolio:", err);
+    } finally {
+      setProfileLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchProfile();
+  }, [token]);
+
+  // Avatar helper — gradient initial fallback
+  const AvatarImg = ({ src, alt, className }) =>
+    src ? (
+      <img src={src} alt={alt} className={className} />
+    ) : (
+      <div
+        className={`${className} bg-gradient-to-tr from-purple-400 via-pink-400 to-orange-400 flex items-center justify-center text-white font-bold`}
+      >
+        {alt?.[0]?.toUpperCase() ?? "U"}
+      </div>
+    );
+
+  // Skeleton block helper
+  const Skeleton = ({ className }) => (
+    <span className={`inline-block bg-slate-100 animate-pulse rounded ${className}`} />
+  );
 
   // Mock saved posts
   const [savedPosts] = useState([
@@ -43,30 +89,39 @@ export default function ProfilePage({ posts }) {
     }
   ]);
 
-  const handlePostClick = (post) => {
-    setSelectedPost(post);
-  };
-
-  const handleCloseModal = () => {
-    setSelectedPost(null);
-  };
+  const handlePostClick = (post) => setSelectedPost(post);
+  const handleCloseModal = () => setSelectedPost(null);
 
   const handleCommentSubmit = (e, postId) => {
     e.preventDefault();
     const text = commentInputs[postId]?.trim();
     if (!text) return;
-
     if (selectedPost) {
-      const updatedPost = {
+      setSelectedPost({
         ...selectedPost,
-        comments: [...(selectedPost.comments || []), { username: "current_user", text }]
-      };
-      setSelectedPost(updatedPost);
+        comments: [...(selectedPost.comments || []), { username: profile.username || "you", text }]
+      });
     }
     setCommentInputs((prev) => ({ ...prev, [postId]: "" }));
   };
 
+  const handleUpdateSuccess = (newData) => {
+    // Re-fetch profile to ensure stats and newly signed urls are aligned
+    fetchProfile();
+  };
+
   const displayedPosts = activeTab === "posts" ? posts : savedPosts;
+
+  if (isEditing) {
+    return (
+      <EditProfilePage 
+        profile={profile} 
+        token={token} 
+        onBack={() => setIsEditing(false)} 
+        onUpdateSuccess={handleUpdateSuccess}
+      />
+    );
+  }
 
   return (
     <div className="w-full max-w-[935px] mx-auto px-4 py-8 bg-gradient-to-b from-[#fafafa] via-white to-[#fafafa] min-h-screen">
@@ -74,57 +129,83 @@ export default function ProfilePage({ posts }) {
       {/* Profile Header */}
       <header className="flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-14 pb-8 mb-8 border-b border-[#efefef]">
         
-        {/* Profile Avatar Container */}
+        {/* Profile Avatar */}
         <div className="w-[150px] h-[150px] rounded-full overflow-hidden border border-[#dbdbdb] shrink-0">
-          <img 
-            src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80" 
-            alt="Current profile" 
-            className="w-full h-full object-cover"
-          />
+          {profileLoading ? (
+            <div className="w-full h-full bg-slate-100 animate-pulse" />
+          ) : (
+            <AvatarImg
+              src={profile.profile_picture_url}
+              alt={profile.username || "profile"}
+              className="w-full h-full object-cover"
+            />
+          )}
         </div>
 
         {/* Profile Info & Stats */}
         <div className="flex-1 space-y-6 w-full text-center md:text-left">
           <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start gap-4">
             <div className="flex items-center gap-1.5">
-              <h2 className="text-xl font-semibold text-[#262626] tracking-tight">{userStats.username}</h2>
+              <h2 className="text-xl font-semibold text-[#262626] tracking-tight">
+                {profileLoading ? <Skeleton className="w-28 h-5" /> : profile.username || "—"}
+              </h2>
               <ShieldCheck className="w-5 h-5 text-blue-500 fill-blue-100" />
             </div>
             
-            <button className="bg-white hover:bg-slate-50 text-[#262626] font-bold text-xs px-5 py-2 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.06)] border border-slate-200 transition-all active:scale-95">
+            <button 
+              onClick={() => setIsEditing(true)}
+              className="bg-white hover:bg-slate-50 text-[#262626] font-bold text-xs px-5 py-2 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.06)] border border-slate-200 transition-all active:scale-95"
+            >
               Edit profile
             </button>
           </div>
 
-          {/* Stats Bar (Aesthetic glassmorphic pills) */}
+          {/* Stats Bar */}
           <div className="grid grid-cols-3 max-w-[400px] mx-auto md:mx-0 bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/60 p-3.5 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
             <div className="text-center border-r border-[#efefef]">
-              <span className="block font-extrabold text-sm text-[#262626]">{activeTab === "posts" ? posts.length : savedPosts.length}</span>
+              <span className="block font-extrabold text-sm text-[#262626]">
+                {activeTab === "posts" ? posts.length : savedPosts.length}
+              </span>
               <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">posts</span>
             </div>
             <div className="text-center border-r border-[#efefef] cursor-pointer hover:bg-slate-50 transition-colors rounded-lg">
-              <span className="block font-extrabold text-sm text-[#262626]">{userStats.followers.toLocaleString()}</span>
+              <span className="block font-extrabold text-sm text-[#262626]">
+                {profileLoading ? <Skeleton className="w-8 h-4 mx-auto" /> : profile.followers_count.toLocaleString()}
+              </span>
               <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">followers</span>
             </div>
             <div className="text-center cursor-pointer hover:bg-slate-50 transition-colors rounded-lg">
-              <span className="block font-extrabold text-sm text-[#262626]">{userStats.following.toLocaleString()}</span>
+              <span className="block font-extrabold text-sm text-[#262626]">
+                {profileLoading ? <Skeleton className="w-8 h-4 mx-auto" /> : profile.following_count.toLocaleString()}
+              </span>
               <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">following</span>
             </div>
           </div>
 
           {/* Bio details */}
           <div className="text-sm space-y-2 text-[#262626]">
-            <h1 className="font-bold text-[#1e1e1e] text-base">{userStats.fullName}</h1>
-            <p className="whitespace-pre-line leading-relaxed text-slate-600 font-medium">{userStats.bio}</p>
-            {userStats.website && (
+            <h1 className="font-bold text-[#1e1e1e] text-base">
+              {profileLoading ? <Skeleton className="w-36 h-4" /> : profile.display_name || "—"}
+            </h1>
+            <p className="whitespace-pre-line leading-relaxed text-slate-600 font-medium">
+              {profileLoading ? (
+                <span className="flex flex-col gap-1.5">
+                  <Skeleton className="w-full h-3" />
+                  <Skeleton className="w-4/5 h-3" />
+                </span>
+              ) : (
+                profile.bio
+              )}
+            </p>
+            {profile.website && (
               <a 
-                href={`https://${userStats.website}`} 
+                href={`https://${profile.website}`} 
                 target="_blank" 
                 rel="noopener noreferrer" 
                 className="inline-flex items-center gap-1.5 text-[#0095f6] hover:text-[#00376b] font-semibold transition-colors"
               >
                 <Link2 className="w-4 h-4" />
-                <span>{userStats.website}</span>
+                <span>{profile.website}</span>
               </a>
             )}
           </div>
@@ -132,7 +213,7 @@ export default function ProfilePage({ posts }) {
 
       </header>
 
-      {/* Tabs Navigation (Pill-Style Slider) */}
+      {/* Tabs Navigation */}
       <div className="flex justify-center mb-6">
         <div className="bg-[#efefef]/60 p-1 rounded-xl flex gap-1.5">
           <button 
@@ -154,7 +235,7 @@ export default function ProfilePage({ posts }) {
         </div>
       </div>
 
-      {/* Grid Content section */}
+      {/* Grid Content */}
       {displayedPosts.length === 0 ? (
         <div className="text-center py-24 bg-white rounded-3xl border border-[#efefef] shadow-[0_10px_30px_rgba(0,0,0,0.01)]">
           <Grid className="w-12 h-12 mx-auto mb-4 stroke-[1.5] text-slate-300" />
@@ -190,7 +271,7 @@ export default function ProfilePage({ posts }) {
         </div>
       )}
 
-      {/* Modern Detail Dialog Overlay */}
+      {/* Post Detail Modal */}
       {selectedPost && (
         <div 
           className="fixed inset-0 bg-black/45 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
@@ -208,7 +289,7 @@ export default function ProfilePage({ posts }) {
               ✕
             </button>
 
-            {/* Left side Image with Soft Inner Border */}
+            {/* Left — Image */}
             <div className="flex-1 bg-black flex items-center justify-center aspect-square md:aspect-auto">
               <img 
                 src={selectedPost.image} 
@@ -217,23 +298,23 @@ export default function ProfilePage({ posts }) {
               />
             </div>
 
-            {/* Right side Detail panel */}
+            {/* Right — Detail panel */}
             <div className="w-full md:w-[380px] flex flex-col h-[400px] md:h-auto border-t md:border-t-0 md:border-l border-[#efefef] bg-white">
               
-              {/* Header profile info */}
+              {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-[#efefef]">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full p-[1.5px] bg-gradient-to-tr from-[#ff3040] to-[#af26b3]">
                     <div className="w-full h-full bg-white rounded-full p-[1px]">
-                      <img 
-                        src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80" 
-                        alt="Current user avatar" 
+                      <AvatarImg
+                        src={profile.profile_picture_url}
+                        alt={profile.username || "user"}
                         className="w-full h-full object-cover rounded-full"
                       />
                     </div>
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-bold text-xs text-[#262626]">{userStats.username}</span>
+                    <span className="font-bold text-xs text-[#262626]">{profile.username || "—"}</span>
                     <span className="text-[9px] text-slate-400 font-semibold">Creator</span>
                   </div>
                 </div>
@@ -242,24 +323,24 @@ export default function ProfilePage({ posts }) {
                 </button>
               </div>
 
-              {/* Feed of Comments */}
+              {/* Comments feed */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[200px] md:max-h-[350px] scrollbar-none">
-                {/* Caption description */}
+                {/* Caption */}
                 <div className="text-xs flex gap-3">
-                  <img 
-                    src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80" 
-                    alt="user avatar" 
+                  <AvatarImg
+                    src={profile.profile_picture_url}
+                    alt={profile.username || "user"}
                     className="w-7 h-7 rounded-full object-cover shrink-0"
                   />
                   <div>
                     <span className="font-bold text-[#262626] mr-1.5 hover:underline cursor-pointer">
-                      {userStats.username}
+                      {profile.username || "—"}
                     </span>
                     <span className="text-slate-600 font-medium leading-relaxed">{selectedPost.caption}</span>
                   </div>
                 </div>
 
-                {/* Additional Comments */}
+                {/* Comments */}
                 {selectedPost.comments && selectedPost.comments.map((comment, index) => (
                   <div key={index} className="text-xs flex gap-3">
                     <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 text-white flex-shrink-0 flex items-center justify-center font-bold text-[8px] uppercase select-none">
@@ -290,7 +371,7 @@ export default function ProfilePage({ posts }) {
                 </div>
               </div>
 
-              {/* Form submit */}
+              {/* Comment form */}
               <form 
                 onSubmit={(e) => handleCommentSubmit(e, selectedPost.id)}
                 className="flex items-center gap-3 p-3 border-t border-[#efefef] bg-white mt-auto"

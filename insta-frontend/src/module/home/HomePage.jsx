@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { 
   Home, Search, MessageCircle, Heart, PlusSquare, User, LogOut, 
   Bookmark, Send, MoreHorizontal, Smile, Menu, Settings
 } from "lucide-react";
 import ProfilePage from "../profile/ProfilePage";
+import SearchPage from "../search/SearchPage";
+import { USER_API_BASE_URL } from "../../config";
 
 const InstagramIcon = (props) => (
   <svg 
@@ -23,7 +26,54 @@ const InstagramIcon = (props) => (
   </svg>
 );
 
-export default function HomePage({ onLogout }) {
+// ── Module-level helpers (stable references, not recreated on every render) ──
+
+/**
+ * Renders an <img> when src is present; falls back to a gradient circle
+ * showing the first letter of alt (e.g. username initial).
+ */
+const AvatarImg = ({ src, alt, className }) =>
+  src ? (
+    <img src={src} alt={alt} className={className} />
+  ) : (
+    <div
+      className={`${className} bg-gradient-to-tr from-purple-400 via-pink-400 to-orange-400 flex items-center justify-center text-white font-bold text-xs`}
+    >
+      {alt?.[0]?.toUpperCase() ?? "U"}
+    </div>
+  );
+
+
+export default function HomePage({ onLogout, token }) {
+  // ── Real user data from GET /user-profile/me ────────────────────────────────
+  const [me, setMe] = useState({ username: "", display_name: "", profile_picture_url: "" });
+  // Start as false when there is no token — avoids infinite loading skeleton
+  const [meLoading, setMeLoading] = useState(!!token);
+
+  useEffect(() => {
+    if (!token) {
+      setMeLoading(false);
+      return;
+    }
+    setMeLoading(true);
+    const fetchMe = async () => {
+      try {
+        const res = await fetch(`${USER_API_BASE_URL}/user-profile/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.data) setMe(data.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch /user-profile/me:", err);
+      } finally {
+        setMeLoading(false);
+      }
+    };
+    fetchMe();
+  }, [token]);
+
   const [posts, setPosts] = useState([
     {
       id: 1,
@@ -72,7 +122,7 @@ export default function HomePage({ onLogout }) {
   ]);
 
   const [stories] = useState([
-    { id: 1, username: "your_story", avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80", isUser: true },
+    { id: 1, username: "your_story", isUser: true },
     { id: 2, username: "travel_diaries", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80" },
     { id: 3, username: "chef_master", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80" },
     { id: 4, username: "tech_vision", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80" },
@@ -90,7 +140,9 @@ export default function HomePage({ onLogout }) {
   const [activeStory, setActiveStory] = useState(null);
   const [storyProgress, setStoryProgress] = useState(0);
   const [likeAnimationId, setLikeAnimationId] = useState(null);
-  const [activeView, setActiveView] = useState("feed");
+  const navigate = useNavigate();
+  const location = useLocation();
+  const activeView = location.pathname === "/profile" ? "profile" : location.pathname === "/search" ? "search" : "feed";
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   // Story progress timer
@@ -206,13 +258,16 @@ export default function HomePage({ onLogout }) {
 
             <nav className="space-y-1">
               <button 
-                onClick={() => { setActiveView("feed"); setIsMoreOpen(false); }}
+                onClick={() => { navigate("/"); setIsMoreOpen(false); }}
                 className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-black/5 text-[#262626] transition-all group"
               >
                 <Home className="w-6 h-6 shrink-0 group-hover:scale-105 transition-transform text-[#262626]" />
                 <span className="text-sm font-bold hidden xl:inline">Home</span>
               </button>
-              <button className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-black/5 text-[#262626] transition-all group">
+              <button 
+                onClick={() => { navigate("/search"); setIsMoreOpen(false); }}
+                className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-black/5 text-[#262626] transition-all group"
+              >
                 <Search className="w-6 h-6 shrink-0 group-hover:scale-105 transition-transform" />
                 <span className="text-sm font-semibold hidden xl:inline">Search</span>
               </button>
@@ -231,13 +286,13 @@ export default function HomePage({ onLogout }) {
                 <span className="text-sm font-semibold hidden xl:inline">Create</span>
               </button>
               <button 
-                onClick={() => { setActiveView("profile"); setIsMoreOpen(false); }}
+                onClick={() => { navigate("/profile"); setIsMoreOpen(false); }}
                 className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-black/5 text-[#262626] transition-all group"
               >
                 <div className="w-6 h-6 rounded-full overflow-hidden border border-[#dbdbdb] shrink-0">
-                  <img 
-                    src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80" 
-                    alt="profile" 
+                  <AvatarImg
+                    src={me.profile_picture_url}
+                    alt={me.username || "profile"}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -251,7 +306,7 @@ export default function HomePage({ onLogout }) {
             {isMoreOpen && (
               <div className="absolute bottom-16 left-2 w-[220px] bg-white border border-[#dbdbdb] rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.15)] p-2 z-50 animate-fade-in space-y-1">
                 <button 
-                  onClick={() => { setActiveView("profile"); setIsMoreOpen(false); }}
+                  onClick={() => { navigate("/profile"); setIsMoreOpen(false); }}
                   className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-black/5 text-[#262626] font-semibold text-xs transition-colors"
                 >
                   <Bookmark className="w-4 h-4" />
@@ -308,16 +363,24 @@ export default function HomePage({ onLogout }) {
                 {stories.map((story) => (
                   <button 
                     key={story.id} 
-                    onClick={() => setActiveStory(story)}
+                    onClick={() => setActiveStory(story.isUser ? { ...story, avatar: me.profile_picture_url, username: me.username } : story)}
                     className="flex flex-col items-center flex-shrink-0 focus:outline-none cursor-pointer group"
                   >
                     <div className="w-[66px] h-[66px] rounded-full p-[2px] bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] transition-transform duration-200 group-hover:scale-105">
                       <div className="w-full h-full bg-white rounded-full p-[2px]">
-                        <img 
-                          src={story.avatar} 
-                          alt={story.username} 
-                          className="w-full h-full object-cover rounded-full"
-                        />
+                        {story.isUser ? (
+                          <AvatarImg
+                            src={me.profile_picture_url}
+                            alt={me.username || "you"}
+                            className="w-full h-full object-cover rounded-full"
+                          />
+                        ) : (
+                          <img 
+                            src={story.avatar} 
+                            alt={story.username} 
+                            className="w-full h-full object-cover rounded-full"
+                          />
+                        )}
                       </div>
                     </div>
                     <span className="text-[11px] text-[#262626] font-normal mt-1.5 truncate max-w-[62px]">
@@ -470,29 +533,38 @@ export default function HomePage({ onLogout }) {
               {/* Logged in User Identity Card */}
               <div className="flex items-center justify-between mb-4">
                 <div 
-                  onClick={() => setActiveView("profile")}
+                  onClick={() => navigate("/profile")}
                   className="flex items-center gap-3 cursor-pointer"
                 >
-                  <div className="w-[56px] h-[56px] rounded-full p-[2px] border border-[#dbdbdb]">
-                    <img 
-                      src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80" 
-                      alt="Current avatar" 
-                      className="w-full h-full object-cover rounded-full"
-                    />
+                  <div className="w-[56px] h-[56px] rounded-full p-[2px] border border-[#dbdbdb] overflow-hidden">
+                    {meLoading ? (
+                      <div className="w-full h-full rounded-full bg-slate-100 animate-pulse" />
+                    ) : (
+                      <AvatarImg
+                        src={me.profile_picture_url}
+                        alt={me.username || "user"}
+                        className="w-full h-full object-cover rounded-full"
+                      />
+                    )}
                   </div>
                   <div className="flex flex-col">
                     <span className="font-semibold text-xs text-[#262626] hover:opacity-85">
-                      current_user
+                      {meLoading ? (
+                        <span className="inline-block w-20 h-3 bg-slate-100 animate-pulse rounded" />
+                      ) : (
+                        me.username || "—"
+                      )}
                     </span>
-                    <span className="text-[11px] text-[#8e8e8e]">Instaclone Member</span>
+                    <span className="text-[11px] text-[#8e8e8e]">
+                      {meLoading ? (
+                        <span className="inline-block w-28 h-2.5 bg-slate-100 animate-pulse rounded mt-1" />
+                      ) : (
+                        me.display_name || "Instaclone Member"
+                      )}
+                    </span>
                   </div>
                 </div>
-                <button 
-                  onClick={onLogout}
-                  className="text-[11px] font-bold text-[#0095f6] hover:text-[#00376b] transition-colors focus:outline-none"
-                >
-                  Switch
-                </button>
+
               </div>
 
               {/* Suggestions Section */}
@@ -555,9 +627,13 @@ export default function HomePage({ onLogout }) {
             </aside>
 
           </main>
+          ) : activeView === "profile" ? (
+            <div className="w-full mt-12 md:mt-0">
+              <ProfilePage posts={posts} token={token} />
+            </div>
           ) : (
             <div className="w-full mt-12 md:mt-0">
-              <ProfilePage posts={posts} />
+              <SearchPage token={token} />
             </div>
           )}
         </div>
@@ -602,19 +678,22 @@ export default function HomePage({ onLogout }) {
 
       <nav className="fixed bottom-0 left-0 right-0 h-14 bg-white border-t border-[#dbdbdb] flex md:hidden items-center justify-around z-30 shadow-lg">
         <button 
-          onClick={() => setActiveView("feed")}
+          onClick={() => navigate("/")}
           className={`${activeView === "feed" ? "text-purple-600" : "text-slate-500"}`}
         >
           <Home className="w-6 h-6" />
         </button>
-        <button className="text-slate-500">
+        <button 
+          onClick={() => navigate("/search")}
+          className={`${activeView === "search" ? "text-purple-600" : "text-slate-500"}`}
+        >
           <Search className="w-6 h-6" />
         </button>
         <button className="text-slate-500">
           <PlusSquare className="w-6 h-6" />
         </button>
         <button 
-          onClick={() => setActiveView("profile")}
+          onClick={() => navigate("/profile")}
           className={`${activeView === "profile" ? "text-purple-600" : "text-slate-500"}`}
         >
           <User className="w-6 h-6" />

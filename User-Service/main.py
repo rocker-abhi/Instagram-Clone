@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqlalchemy import text
@@ -9,6 +10,7 @@ from app.core.global_exception_handler import register_exception_handlers
 from app.core.logger import setup_logger
 from app.core.request_handler import register_middleware
 from app.core.database import db
+from app.core.storage import StorageFactory
 from app.grpc.server.server import start_grpc, stop_grpc
 from app.routes import api_router
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,6 +32,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.critical("Database connection failed: %s", str(e))
         raise SystemExit("Fatal: Database is unreachable.") from e
+
+    # Verify MinIO connection
+    try:
+        storage = StorageFactory.get_storage()
+        # Verify connectivity by checking if we can list buckets (run blocking call in thread)
+        await asyncio.to_thread(storage._client.list_buckets)
+        logger.info("MinIO storage connection verified successfully.")
+    except Exception as e:
+        logger.critical("MinIO storage connection failed: %s", str(e))
+        raise SystemExit("Fatal: MinIO storage is unreachable.") from e
 
     # Start async gRPC server
     try:

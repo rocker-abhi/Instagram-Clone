@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\nuser.proto\x12\x07user.v1\"=\n\x18\x43reateUserProfileRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x10\n\x08username\x18\x02 \x01(\t\"=\n\x19\x43reateUserProfileResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"(\n\x15GetUserProfileRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\"\x88\x01\n\x13UserProfileResponse\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x10\n\x08username\x18\x02 \x01(\t\x12\x14\n\x0c\x64isplay_name\x18\x03 \x01(\t\x12\x0b\n\x03\x62io\x18\x04 \x01(\t\x12\x17\n\x0fprofile_picture\x18\x05 \x01(\t\x12\x12\n\nis_private\x18\x06 \x01(\x08\x32\xb9\x01\n\x0bUserService\x12Z\n\x11\x43reateUserProfile\x12!.user.v1.CreateUserProfileRequest\x1a\".user.v1.CreateUserProfileResponse\x12N\n\x0eGetUserProfile\x12\x1e.user.v1.GetUserProfileRequest\x1a\x1c.user.v1.UserProfileResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\nuser.proto\x12\x07user.v1\"=\n\x18\x43reateUserProfileRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x10\n\x08username\x18\x02 \x01(\t\"=\n\x19\x43reateUserProfileResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"(\n\x15GetUserProfileRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\"\x88\x01\n\x13UserProfileResponse\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x10\n\x08username\x18\x02 \x01(\t\x12\x14\n\x0c\x64isplay_name\x18\x03 \x01(\t\x12\x0b\n\x03\x62io\x18\x04 \x01(\t\x12\x17\n\x0fprofile_picture\x18\x05 \x01(\t\x12\x12\n\nis_private\x18\x06 \x01(\x08\".\n\x1aGetUserIdByUsernameRequest\x12\x10\n\x08username\x18\x01 \x01(\t\">\n\x1bGetUserIdByUsernameResponse\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x0e\n\x06\x65xists\x18\x02 \x01(\x08\x32\x9b\x02\n\x0bUserService\x12Z\n\x11\x43reateUserProfile\x12!.user.v1.CreateUserProfileRequest\x1a\".user.v1.CreateUserProfileResponse\x12N\n\x0eGetUserProfile\x12\x1e.user.v1.GetUserProfileRequest\x1a\x1c.user.v1.UserProfileResponse\x12`\n\x13GetUserIdByUsername\x12#.user.v1.GetUserIdByUsernameRequest\x1a$.user.v1.GetUserIdByUsernameResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -39,6 +39,10 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_GETUSERPROFILEREQUEST']._serialized_end=189
   _globals['_USERPROFILERESPONSE']._serialized_start=192
   _globals['_USERPROFILERESPONSE']._serialized_end=328
-  _globals['_USERSERVICE']._serialized_start=331
-  _globals['_USERSERVICE']._serialized_end=516
+  _globals['_GETUSERIDBYUSERNAMEREQUEST']._serialized_start=330
+  _globals['_GETUSERIDBYUSERNAMEREQUEST']._serialized_end=376
+  _globals['_GETUSERIDBYUSERNAMERESPONSE']._serialized_start=378
+  _globals['_GETUSERIDBYUSERNAMERESPONSE']._serialized_end=440
+  _globals['_USERSERVICE']._serialized_start=443
+  _globals['_USERSERVICE']._serialized_end=726
 # @@protoc_insertion_point(module_scope)
