@@ -5,7 +5,7 @@ from app.routes.dependencies import get_auth_service, get_current_user
 from app.schemas.login_schema import LoginRequest, LoginResponse, RefreshRequest
 from app.service.authentication_service import AuthenticationService
 from app.schemas.register_schema import RegisterUserRequest, RegisterUserResponse
-from app.schemas.reset_password_schema import ResetPasswordRequest, PasswordResetEmailRequest
+from app.schemas.reset_password_schema import ResetPasswordRequest, PasswordResetEmailRequest, ChangePasswordRequest
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -64,6 +64,17 @@ async def reset_password(
     identifier = data.phone if data.reset_type == "phone" else data.email
     await auth_service.reset_password(data.reset_type, identifier, data.password)
     return {"success": True, "message": "Password reset successfully."}
+
+
+@auth_router.post("/change-password")
+async def change_password(
+    data: ChangePasswordRequest,
+    current_user: dict = Depends(get_current_user),
+    auth_service: AuthenticationService = Depends(get_auth_service),
+):
+    user_id = current_user.get("sub")
+    await auth_service.change_password(user_id, data.password)
+    return {"success": True, "message": "Password changed successfully."}
 
 @auth_router.post("/request-password-reset")
 async def request_password_reset(

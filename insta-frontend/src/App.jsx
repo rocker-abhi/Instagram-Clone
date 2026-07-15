@@ -8,6 +8,61 @@ import HomePage from "./module/home/HomePage";
 import Onboarding from "./module/auth/Onboarding";
 import { API_BASE_URL, USER_API_BASE_URL } from "./config";
 
+// Global fetch interceptor to handle token refresh automatically
+const originalFetch = window.fetch;
+window.fetch = async function (url, options) {
+  let response = await originalFetch(url, options);
+
+  if (response.status === 401 && !url.includes("/auth/refresh") && !url.includes("/auth/login")) {
+    const refreshToken = localStorage.getItem("refresh_token");
+    if (refreshToken) {
+      try {
+        const refreshResponse = await originalFetch(`${API_BASE_URL}/auth/refresh`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+
+        if (refreshResponse.ok) {
+          const refreshData = await refreshResponse.json();
+          if (refreshData.success && refreshData.data) {
+            const newAccess = refreshData.data.access_token;
+            const newRefresh = refreshData.data.refresh_token;
+
+            localStorage.setItem("access_token", newAccess);
+            localStorage.setItem("refresh_token", newRefresh);
+
+            window.dispatchEvent(new CustomEvent("token-refreshed", { detail: { token: newAccess } }));
+
+            const newOptions = { ...options };
+            if (newOptions.headers) {
+              if (newOptions.headers instanceof Headers) {
+                newOptions.headers.set("Authorization", `Bearer ${newAccess}`);
+              } else if (Array.isArray(newOptions.headers)) {
+                newOptions.headers = newOptions.headers.map(([k, v]) => k.toLowerCase() === "authorization" ? [k, `Bearer ${newAccess}`] : [k, v]);
+              } else {
+                newOptions.headers = { ...newOptions.headers };
+                newOptions.headers["Authorization"] = `Bearer ${newAccess}`;
+              }
+            }
+            return await originalFetch(url, newOptions);
+          }
+        }
+      } catch (err) {
+        console.error("Token refresh failed:", err);
+      }
+
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      window.dispatchEvent(new Event("auth-logout"));
+    }
+  }
+
+  return response;
+};
+
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem("access_token"));
   const [isOnboardingCompleted, setIsOnboardingCompleted] = useState(true);
@@ -16,6 +71,23 @@ export default function App() {
 
   const isVerifyEmailPath = location.pathname === "/verify-email";
   const isResetPasswordPath = location.pathname === "/reset-password";
+
+  // Token refresh state synchronizer
+  useEffect(() => {
+    const handleLogoutEvent = () => {
+      setToken(null);
+      navigate("/login");
+    };
+    const handleRefreshEvent = (e) => {
+      setToken(e.detail.token);
+    };
+    window.addEventListener("auth-logout", handleLogoutEvent);
+    window.addEventListener("token-refreshed", handleRefreshEvent);
+    return () => {
+      window.removeEventListener("auth-logout", handleLogoutEvent);
+      window.removeEventListener("token-refreshed", handleRefreshEvent);
+    };
+  }, [navigate]);
 
   useEffect(() => {
     if (!token || isVerifyEmailPath || isResetPasswordPath) return;

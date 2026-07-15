@@ -1,6 +1,8 @@
 from typing import Optional
 from pydantic import BaseModel, UUID4, field_validator
 import re
+import uuid
+from app.enums.account_visibility import AccountVisibility
 
 
 # ─────────────────────────────────────────────
@@ -33,6 +35,8 @@ class PortfolioUserProfileResponse(BaseModel):
     profile_picture_url: str   # resolved pre-signed URL or ""
     followers_count: int
     following_count: int
+    account_visibility: AccountVisibility
+    following_status: Optional[str] = None
 
 
 class UserMeResponse(BaseModel):
@@ -46,8 +50,29 @@ class UserMeResponse(BaseModel):
 
 
 # ─────────────────────────────────────────────
-# Request Schemas
-# ─────────────────────────────────────────────
+class ProfileSetupRequest(BaseModel):
+    display_name: str
+    bio: Optional[str] = None
+
+    @field_validator("display_name")
+    @classmethod
+    def validate_display_name(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 6 or len(v) > 20:
+            raise ValueError("Full name must be between 6 and 20 characters")
+        if not re.match(r"^[a-zA-Z0-9 ]+$", v):
+            raise ValueError("Full name can only contain letters, numbers, and spaces")
+        if "  " in v:
+            raise ValueError("Full name cannot contain consecutive spaces")
+        return v
+
+    @field_validator("bio")
+    @classmethod
+    def validate_bio(cls, v: Optional[str]) -> Optional[str]:
+        if v and len(v) > 150:
+            raise ValueError("Bio cannot exceed 150 characters")
+        return v
+
 
 class UserProfileUpdateRequest(BaseModel):
     """
@@ -103,3 +128,23 @@ class UserProfileUpdateRequest(BaseModel):
         if len(v) > 150:
             raise ValueError("Bio cannot exceed 150 characters")
         return v
+
+
+
+
+class PrivacySettingsResponse(BaseModel):
+    account_visibility: AccountVisibility
+    allow_message_requests: bool
+    show_activity_status: bool
+
+class PrivacySettingsUpdateRequest(BaseModel):
+    account_visibility: Optional[AccountVisibility] = None
+    allow_message_requests: Optional[bool] = None
+    show_activity_status: Optional[bool] = None
+
+
+class FollowRequestResponse(BaseModel):
+    id: uuid.UUID
+    follower_username: str
+    follower_display_name: str
+    follower_profile_picture_url: str

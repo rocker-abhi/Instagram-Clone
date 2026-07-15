@@ -315,4 +315,17 @@ class AuthenticationService:
         )
         self.kafka_producer.publish(topic=KafakTopics.USER_REGISTERED, message=asdict(event))
 
+    async def change_password(self, user_id: str, password: str) -> None:
+        """
+        Change password for an authenticated user, invoking the strategy validation.
+        """
+        user = await self.user_repository.get_user_by_id(user_id)
+        if not user:
+            raise UserNotFound("User not found.")
+        
+        reset_type = "email" if user.email else "phone"
+        identifier = user.email if user.email else user.phone
+
+        await self.reset_password(reset_type, identifier, password)
+
 

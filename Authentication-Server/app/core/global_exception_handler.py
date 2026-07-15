@@ -16,10 +16,17 @@ def register_exception_handlers(app: FastAPI):
         request: Request, exc: RequestValidationError
     ):
         errors = []
+        serializable_details = []
         for error in exc.errors():
             loc = " -> ".join(str(x) for x in error.get("loc", []))
             msg = error.get("msg", "Unknown error")
             errors.append(f"{loc}: {msg}")
+            
+            serializable_details.append({
+                "loc": [str(x) for x in error.get("loc", [])],
+                "msg": str(msg),
+                "type": str(error.get("type", ""))
+            })
         
         error_msg = "; ".join(errors)
         logger.warning("Validation failed: %s", error_msg)
@@ -31,7 +38,7 @@ def register_exception_handlers(app: FastAPI):
                 "message": f"Validation failed: {error_msg}",
                 "data": {
                     "code": "VALIDATION_ERROR",
-                    "details": exc.errors()
+                    "details": serializable_details
                 },
             },
         )

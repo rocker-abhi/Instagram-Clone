@@ -8,7 +8,11 @@ from app.schema.user_profile_schema import (
     UserProfileUpdateRequest,
     UserMeResponse,
     PortfolioUserProfileResponse,
+    PrivacySettingsResponse,
+    PrivacySettingsUpdateRequest,
+    FollowRequestResponse,
 )
+from app.enums.account_visibility import AccountVisibility
 from app.core.storage import StorageFactory
 from app.storage.buckets import Buckets
 from app.storage.models import UploadRequest, DeleteRequest
@@ -85,6 +89,8 @@ class UserProfileService:
             raise ProfileNotFound(f"Profile for user ID {user_id} was not found")
 
         followers_count, following_count = await self.repository.get_follow_counts(profile.id)
+        privacy = await self.repository.get_privacy_settings(profile.id)
+        visibility = privacy.account_visibility if privacy else AccountVisibility.PUBLIC
 
         return PortfolioUserProfileResponse(
             username=profile.username,
@@ -94,6 +100,7 @@ class UserProfileService:
             profile_picture_url=await self._resolve_avatar_url(profile.profile_picture_key),
             followers_count=followers_count,
             following_count=following_count,
+            account_visibility=visibility,
         )
 
     async def update_profile(self, user_id: uuid.UUID, data: UserProfileUpdateRequest) -> UserProfileResponse:
@@ -223,6 +230,256 @@ class UserProfileService:
         profiles = await self.repository.search_profiles_by_username(query, exclude_user_id=exclude_user_id)
         res = []
         for p in profiles:
+            res.append(
+                UserProfileResponse(
+                    user_id=p.user_id,
+                    username=p.username,
+                    display_name=p.display_name or "",
+                    bio=p.bio or "",
+                    profile_picture_url=await self._resolve_avatar_url(p.profile_picture_key),
+                    is_onboarding_completed=p.is_onboarding_completed,
+                )
+            )
+        return res
+
+    async def get_settings(self, user_id: uuid.UUID) -> PrivacySettingsResponse:
+        """
+        Get privacy settings for the given user.
+        """
+        profile = await self.repository.get_profile_by_user_uuid(user_id)
+        if not profile:
+            raise ProfileNotFound("Profile not found")
+
+        privacy = await self.repository.get_privacy_settings(profile.id)
+        if not privacy:
+            from app.models.privacy_setting import PrivacySetting
+            privacy = PrivacySetting(user_id=profile.id)
+            self.session.add(privacy)
+            await self.session.commit()
+
+        return PrivacySettingsResponse(
+            account_visibility=privacy.account_visibility,
+            allow_message_requests=privacy.allow_message_requests,
+            show_activity_status=privacy.show_activity_status,
+        )
+
+    async def update_settings(self, user_id: uuid.UUID, update_req: PrivacySettingsUpdateRequest) -> PrivacySettingsResponse:
+        """
+        Update privacy settings for the given user.
+        """
+        profile = await self.repository.get_profile_by_user_uuid(user_id)
+        if not profile:
+            raise ProfileNotFound("Profile not found")
+
+        privacy = await self.repository.get_privacy_settings(profile.id)
+        if not privacy:
+            from app.models.privacy_setting import PrivacySetting
+            privacy = PrivacySetting(user_id=profile.id)
+            self.session.add(privacy)
+
+        if update_req.account_visibility is not None:
+            privacy.account_visibility = update_req.account_visibility
+        if update_req.allow_message_requests is not None:
+            privacy.allow_message_requests = update_req.allow_message_requests
+        if update_req.show_activity_status is not None:
+            privacy.show_activity_status = update_req.show_activity_status
+
+        await self.session.commit()
+
+        return PrivacySettingsResponse(
+            account_visibility=privacy.account_visibility,
+            allow_message_requests=privacy.allow_message_requests,
+            show_activity_status=privacy.show_activity_status,
+        )
+
+    async def get_public_profile(self, username: str, current_user_id: uuid.UUID = None) -> PortfolioUserProfileResponse:
+        """
+        Fetch public portfolio details for a profile matching the username handle.
+        """
+        profile = await self.repository.get_profile_by_username(username)
+        if not profile:
+            raise ProfileNotFound("Profile not found")
+
+        followers_count, following_count = await self.repository.get_follow_counts(profile.id)
+        privacy = await self.repository.get_privacy_settings(profile.id)
+        visibility = privacy.account_visibility if privacy else AccountVisibility.PUBLIC
+
+        following_status = None
+        if current_user_id:
+            curr_profile = await self.repository.get_profile_by_user_uuid(current_user_id)
+            if curr_profile:
+                rel = await self.repository.get_follow_relationship(curr_profile.id, profile.id)
+                if rel:
+                    following_status = rel.status.value
+
+        return PortfolioUserProfileResponse(
+            username=profile.username,
+            display_name=profile.display_name or "",
+            bio=profile.bio or "",
+            website=profile.website or "",
+            profile_picture_url=await self._resolve_avatar_url(profile.profile_picture_key),
+            followers_count=followers_count,
+            following_count=following_count,
+            account_visibility=visibility,
+            following_status=following_status,
+        )
+
+    async def get_follow_requests(self, user_id: uuid.UUID) -> list[FollowRequestResponse]:
+        """
+        Get all pending follow requests for the logged-in user.
+        """
+        profile = await self.repository.get_profile_by_user_uuid(user_id)
+        if not profile:
+            raise ProfileNotFound("Profile not found")
+
+        requests = await self.repository.get_pending_follow_requests(profile.id)
+        
+        result = []
+        for follow, follower_profile in requests:
+            avatar_url = await self._resolve_avatar_url(follower_profile.profile_picture_key)
+            result.append(
+                FollowRequestResponse(
+                    id=follow.id,
+                    follower_username=follower_profile.username,
+                    follower_display_name=follower_profile.display_name or "",
+                    follower_profile_picture_url=avatar_url,
+                )
+            )
+        return result
+
+    async def accept_follow_request(self, user_id: uuid.UUID, follow_id: uuid.UUID) -> None:
+        """
+        Accept a pending follow request.
+        """
+        profile = await self.repository.get_profile_by_user_uuid(user_id)
+        if not profile:
+            raise ProfileNotFound("Profile not found")
+
+        follow = await self.repository.get_follow_by_id(follow_id)
+        if not follow:
+            raise ValueError("Follow request not found.")
+
+        # Ensure the follow request belongs to this user
+        if follow.following_id != profile.id:
+            raise ValueError("Unauthorized to accept this follow request.")
+
+        from app.enums.follow_status import FollowStatus
+        follow.status = FollowStatus.ACCEPTED
+        await self.session.commit()
+
+    async def reject_follow_request(self, user_id: uuid.UUID, follow_id: uuid.UUID) -> None:
+        """
+        Reject/Delete a follow request.
+        """
+        profile = await self.repository.get_profile_by_user_uuid(user_id)
+        if not profile:
+            raise ProfileNotFound("Profile not found")
+
+        follow = await self.repository.get_follow_by_id(follow_id)
+        if not follow:
+            raise ValueError("Follow request not found.")
+
+        # Ensure the follow request belongs to this user
+        if follow.following_id != profile.id:
+            raise ValueError("Unauthorized to reject this follow request.")
+
+        await self.repository.delete_follow(follow)
+        await self.session.commit()
+
+    async def follow_user(self, current_user_id: uuid.UUID, target_username: str) -> str:
+        """
+        Follow another user. If target is private, status is PENDING.
+        If public, status is ACCEPTED. Returns status string.
+        """
+        curr_profile = await self.repository.get_profile_by_user_uuid(current_user_id)
+        if not curr_profile:
+            raise ProfileNotFound("Profile not found")
+
+        target_profile = await self.repository.get_profile_by_username(target_username)
+        if not target_profile:
+            raise ProfileNotFound("Target profile not found")
+
+        if curr_profile.id == target_profile.id:
+            raise ValueError("You cannot follow yourself.")
+
+        # Check existing follow relationship
+        existing = await self.repository.get_follow_relationship(curr_profile.id, target_profile.id)
+        if existing:
+            return existing.status.value
+
+        privacy = await self.repository.get_privacy_settings(target_profile.id)
+        visibility = privacy.account_visibility if privacy else AccountVisibility.PUBLIC
+
+        from app.enums.follow_status import FollowStatus
+        status = FollowStatus.PENDING if visibility == AccountVisibility.PRIVATE else FollowStatus.ACCEPTED
+
+        await self.repository.create_follow(curr_profile.id, target_profile.id, status)
+        await self.session.commit()
+        return status.value
+
+    async def unfollow_user(self, current_user_id: uuid.UUID, target_username: str) -> None:
+        """
+        Unfollow another user or withdraw follow request.
+        """
+        curr_profile = await self.repository.get_profile_by_user_uuid(current_user_id)
+        if not curr_profile:
+            raise ProfileNotFound("Profile not found")
+
+        target_profile = await self.repository.get_profile_by_username(target_username)
+        if not target_profile:
+            raise ProfileNotFound("Target profile not found")
+
+        existing = await self.repository.get_follow_relationship(curr_profile.id, target_profile.id)
+        if existing:
+            await self.repository.delete_follow(existing)
+            await self.session.commit()
+
+    async def get_followers_list(self, user_id_or_username: str) -> list[UserProfileResponse]:
+        """
+        Get followers list of the specified profile.
+        """
+        profile = None
+        try:
+            user_uuid = uuid.UUID(user_id_or_username)
+            profile = await self.repository.get_profile_by_user_uuid(user_uuid)
+        except ValueError:
+            profile = await self.repository.get_profile_by_username(user_id_or_username)
+
+        if not profile:
+            raise ProfileNotFound("Profile not found")
+
+        followers = await self.repository.get_followers_list(profile.id)
+        res = []
+        for p in followers:
+            res.append(
+                UserProfileResponse(
+                    user_id=p.user_id,
+                    username=p.username,
+                    display_name=p.display_name or "",
+                    bio=p.bio or "",
+                    profile_picture_url=await self._resolve_avatar_url(p.profile_picture_key),
+                    is_onboarding_completed=p.is_onboarding_completed,
+                )
+            )
+        return res
+
+    async def get_following_list(self, user_id_or_username: str) -> list[UserProfileResponse]:
+        """
+        Get following list of the specified profile.
+        """
+        profile = None
+        try:
+            user_uuid = uuid.UUID(user_id_or_username)
+            profile = await self.repository.get_profile_by_user_uuid(user_uuid)
+        except ValueError:
+            profile = await self.repository.get_profile_by_username(user_id_or_username)
+
+        if not profile:
+            raise ProfileNotFound("Profile not found")
+
+        following = await self.repository.get_following_list(profile.id)
+        res = []
+        for p in following:
             res.append(
                 UserProfileResponse(
                     user_id=p.user_id,

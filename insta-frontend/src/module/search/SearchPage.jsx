@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Search, User, Loader2, X, AlertCircle } from "lucide-react";
 import { USER_API_BASE_URL } from "../../config";
 
 export default function SearchPage({ token }) {
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -115,7 +117,7 @@ export default function SearchPage({ token }) {
           {results.map((user) => (
             <div
               key={user.user_id}
-              onClick={() => setSelectedUser(user)}
+              onClick={() => navigate(`/profile?username=${user.username}`)}
               className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-100 cursor-pointer transition-all"
             >
               <div className="flex items-center gap-3">

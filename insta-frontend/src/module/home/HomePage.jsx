@@ -2,10 +2,12 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { 
   Home, Search, MessageCircle, Heart, PlusSquare, User, LogOut, 
-  Bookmark, Send, MoreHorizontal, Smile, Menu, Settings
+  Bookmark, Send, MoreHorizontal, Smile, Menu, Settings, UserCheck
 } from "lucide-react";
 import ProfilePage from "../profile/ProfilePage";
 import SearchPage from "../search/SearchPage";
+import SettingsPage from "../settings/SettingsPage";
+import RequestsPage from "../requests/RequestsPage";
 import { USER_API_BASE_URL } from "../../config";
 
 const InstagramIcon = (props) => (
@@ -142,7 +144,7 @@ export default function HomePage({ onLogout, token }) {
   const [likeAnimationId, setLikeAnimationId] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const activeView = location.pathname === "/profile" ? "profile" : location.pathname === "/search" ? "search" : "feed";
+  const activeView = location.pathname === "/profile" ? "profile" : location.pathname === "/search" ? "search" : location.pathname === "/settings" ? "settings" : location.pathname === "/requests" ? "requests" : "feed";
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   // Story progress timer
@@ -286,6 +288,13 @@ export default function HomePage({ onLogout, token }) {
                 <span className="text-sm font-semibold hidden xl:inline">Create</span>
               </button>
               <button 
+                onClick={() => { navigate("/requests"); setIsMoreOpen(false); }}
+                className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-black/5 text-[#262626] transition-all group"
+              >
+                <UserCheck className="w-6 h-6 shrink-0 group-hover:scale-105 transition-transform" />
+                <span className="text-sm font-semibold hidden xl:inline">Requests</span>
+              </button>
+              <button 
                 onClick={() => { navigate("/profile"); setIsMoreOpen(false); }}
                 className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-black/5 text-[#262626] transition-all group"
               >
@@ -313,6 +322,7 @@ export default function HomePage({ onLogout, token }) {
                   <span>Saved</span>
                 </button>
                 <button 
+                  onClick={() => { navigate("/settings"); setIsMoreOpen(false); }}
                   className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-black/5 text-[#262626] font-semibold text-xs transition-colors"
                 >
                   <Settings className="w-4 h-4" />
@@ -631,9 +641,17 @@ export default function HomePage({ onLogout, token }) {
             <div className="w-full mt-12 md:mt-0">
               <ProfilePage posts={posts} token={token} />
             </div>
-          ) : (
+          ) : activeView === "search" ? (
             <div className="w-full mt-12 md:mt-0">
               <SearchPage token={token} />
+            </div>
+          ) : activeView === "settings" ? (
+            <div className="w-full mt-12 md:mt-0">
+              <SettingsPage token={token} />
+            </div>
+          ) : (
+            <div className="w-full mt-12 md:mt-0">
+              <RequestsPage token={token} />
             </div>
           )}
         </div>
