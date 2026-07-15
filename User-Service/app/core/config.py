@@ -25,6 +25,17 @@ class __Settings(BaseSettings):
     MINIO_SECURE: bool = False
     MINIO_PUBLIC_URL: str = "http://localhost:9000"
 
+    # Kafka Config
+    KAFKA_BOOTSTRAP_SERVERS: str
+    KAFKA_BATCH_SIZE: int = 32768
+    KAFKA_LINGER_MS: int = 10
+    KAFKA_ACKS: str = "all"
+    KAFKA_RETRIES: int = 5
+    KAFKA_SECURITY_PROTOCOL: str = "SASL_PLAINTEXT"
+    KAFKA_SASL_MECHANISM: str = "PLAIN"
+    KAFKA_SASL_PLAIN_USERNAME: str
+    KAFKA_SASL_PLAIN_PASSWORD: str
+
     model_config = SettingsConfigDict(
         env_file=env_path,
         extra="ignore",

@@ -11,6 +11,7 @@ from app.core.logger import setup_logger
 from app.core.request_handler import register_middleware
 from app.core.database import db
 from app.core.storage import StorageFactory
+from app.kafka.kafka_client import kafka_client
 from app.grpc.server.server import start_grpc, stop_grpc
 from app.routes import api_router
 from fastapi.middleware.cors import CORSMiddleware
@@ -43,6 +44,13 @@ async def lifespan(app: FastAPI):
         logger.critical("MinIO storage connection failed: %s", str(e))
         raise SystemExit("Fatal: MinIO storage is unreachable.") from e
 
+    # Verify Kafka connection
+    try:
+        kafka_client.verify_connection()
+    except Exception as e:
+        logger.critical("Kafka connection check failed: %s", str(e))
+        raise SystemExit("Fatal: Kafka is unreachable.") from e
+
     # Start async gRPC server
     try:
         await start_grpc()
@@ -54,6 +62,12 @@ async def lifespan(app: FastAPI):
 
     logger.info("Application is shutting down...")
     await stop_grpc()
+
+    # Stop Kafka Producer
+    try:
+        kafka_client.stop_producer()
+    except Exception as e:
+        logger.error("Error stopping Kafka Producer: %s", str(e))
 
     await db.close()
     logger.info("Database connection closed.")

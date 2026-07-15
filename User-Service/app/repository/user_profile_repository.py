@@ -37,6 +37,17 @@ class UserProfileRepository:
         except Exception as e:
             raise InfrastructureException(service="Database", message=f"Failed to fetch profile by username: {str(e)}")
 
+    async def get_profile_by_id(self, profile_id: uuid.UUID) -> UserProfile | None:
+        """
+        Fetch UserProfile using its primary key ID.
+        """
+        try:
+            stmt = select(UserProfile).where(UserProfile.id == profile_id)
+            result = await self.session.execute(stmt)
+            return result.scalar_one_or_none()
+        except Exception as e:
+            raise InfrastructureException(service="Database", message=f"Failed to fetch profile by id: {str(e)}")
+
     async def get_privacy_settings(self, profile_id: int) -> PrivacySetting | None:
         """
         Fetch PrivacySetting using profile id.

@@ -1,6 +1,7 @@
 import uuid
 import logging
 import io
+import asyncio
 from app.repository.user_profile_repository import UserProfileRepository
 from app.exceptions.business_exception import ProfileNotFound, InvalidProfilePictureException, UsernameAlreadyExistsException
 from app.schema.user_profile_schema import (
@@ -16,6 +17,9 @@ from app.enums.account_visibility import AccountVisibility
 from app.core.storage import StorageFactory
 from app.storage.buckets import Buckets
 from app.storage.models import UploadRequest, DeleteRequest
+from app.kafka.producer import KafkaProducer
+from app.kafka.events import NotificationCreatedEventBuilder
+from app.kafka.topics import KafakTopics
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +35,7 @@ class UserProfileService:
     def __init__(self, session):
         self.repository = UserProfileRepository(session)
         self.session = session
+        self.kafka_producer = KafkaProducer()
 
     async def _resolve_avatar_url(self, object_key: str | None) -> str:
         """
@@ -286,6 +291,26 @@ class UserProfileService:
 
         await self.session.commit()
 
+        # Publish settings update notification event to Kafka
+        try:
+            event = (
+                NotificationCreatedEventBuilder()
+                .set_receiver_id(profile.user_id)
+                .set_actor_id(profile.user_id)
+                .set_type("settings")
+                .set_message("Your privacy settings have been updated successfully.")
+                .build()
+            )
+            # Run in executor thread since publish is blocking I/O
+            await asyncio.to_thread(
+                self.kafka_producer.publish,
+                topic=KafakTopics.NOTIFICATION_CREATED,
+                message=event.to_dict()
+            )
+            logger.info("Published settings update notification event to Kafka for user: %s", profile.user_id)
+        except Exception as e:
+            logger.error("Failed to publish settings update notification to Kafka: %s", str(e))
+
         return PrivacySettingsResponse(
             account_visibility=privacy.account_visibility,
             allow_message_requests=privacy.allow_message_requests,
@@ -367,6 +392,43 @@ class UserProfileService:
         follow.status = FollowStatus.ACCEPTED
         await self.session.commit()
 
+        # Publish accept follow request notification event to Kafka
+        try:
+            follower_profile = await self.repository.get_profile_by_id(follow.follower_id)
+            if follower_profile:
+                # 1. Notify the requester
+                event_follower = (
+                    NotificationCreatedEventBuilder()
+                    .set_receiver_id(follower_profile.user_id)
+                    .set_actor_id(profile.user_id)
+                    .set_type("follow_accept")
+                    .set_message(f"{profile.username} accepted your follow request.")
+                    .build()
+                )
+                await asyncio.to_thread(
+                    self.kafka_producer.publish,
+                    topic=KafakTopics.NOTIFICATION_CREATED,
+                    message=event_follower.to_dict()
+                )
+
+                # 2. Notify the accepting user
+                event_acceptor = (
+                    NotificationCreatedEventBuilder()
+                    .set_receiver_id(profile.user_id)
+                    .set_actor_id(follower_profile.user_id)
+                    .set_type("follow_accept")
+                    .set_message(f"You accepted {follower_profile.username}'s follow request.")
+                    .build()
+                )
+                await asyncio.to_thread(
+                    self.kafka_producer.publish,
+                    topic=KafakTopics.NOTIFICATION_CREATED,
+                    message=event_acceptor.to_dict()
+                )
+                logger.info("Published accept follow notification events to Kafka for both users.")
+        except Exception as e:
+            logger.error("Failed to publish accept follow notifications to Kafka: %s", str(e))
+
     async def reject_follow_request(self, user_id: uuid.UUID, follow_id: uuid.UUID) -> None:
         """
         Reject/Delete a follow request.
@@ -415,6 +477,31 @@ class UserProfileService:
 
         await self.repository.create_follow(curr_profile.id, target_profile.id, status)
         await self.session.commit()
+
+        # Publish follow notification event to Kafka
+        try:
+            event = (
+                NotificationCreatedEventBuilder()
+                .set_receiver_id(target_profile.user_id)
+                .set_actor_id(curr_profile.user_id)
+                .set_type("follow")
+                .set_message(
+                    f"{curr_profile.username} started following you."
+                    if status == FollowStatus.ACCEPTED
+                    else f"{curr_profile.username} requested to follow you."
+                )
+                .build()
+            )
+            # Run in executor thread since publish is blocking I/O
+            await asyncio.to_thread(
+                self.kafka_producer.publish,
+                topic=KafakTopics.NOTIFICATION_CREATED,
+                message=event.to_dict()
+            )
+            logger.info("Published follow notification event to Kafka for receiver: %s", target_profile.user_id)
+        except Exception as e:
+            logger.error("Failed to publish follow notification to Kafka: %s", str(e))
+
         return status.value
 
     async def unfollow_user(self, current_user_id: uuid.UUID, target_username: str) -> None:

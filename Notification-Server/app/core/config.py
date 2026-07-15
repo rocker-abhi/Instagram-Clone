@@ -23,6 +23,7 @@ class __Settings(BaseSettings):
     EMAIL_VERIFICATION_TTL: int
 
     JWT_SECRET_KEY: str = ""
+    JWT_PUBLIC_KEY_PATH: str = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "shared", "keys", "jwt_public_key.pem"))
     ACCESS_TOKEN_EXPIRE_MINUTES: int
 
     HOST: str

@@ -8,6 +8,7 @@ import ProfilePage from "../profile/ProfilePage";
 import SearchPage from "../search/SearchPage";
 import SettingsPage from "../settings/SettingsPage";
 import RequestsPage from "../requests/RequestsPage";
+import NotificationsPage from "../notifications/NotificationsPage";
 import { USER_API_BASE_URL } from "../../config";
 
 const InstagramIcon = (props) => (
@@ -144,7 +145,7 @@ export default function HomePage({ onLogout, token }) {
   const [likeAnimationId, setLikeAnimationId] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const activeView = location.pathname === "/profile" ? "profile" : location.pathname === "/search" ? "search" : location.pathname === "/settings" ? "settings" : location.pathname === "/requests" ? "requests" : "feed";
+  const activeView = location.pathname === "/profile" ? "profile" : location.pathname === "/search" ? "search" : location.pathname === "/settings" ? "settings" : location.pathname === "/requests" ? "requests" : location.pathname === "/notifications" ? "notifications" : "feed";
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   // Story progress timer
@@ -279,7 +280,10 @@ export default function HomePage({ onLogout, token }) {
                 <span className="absolute left-7 top-2.5 w-2 h-2 bg-red-500 rounded-full" />
                 <span className="text-sm font-semibold hidden xl:inline">Messages</span>
               </button>
-              <button className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-black/5 text-[#262626] transition-all group">
+              <button 
+                onClick={() => { navigate("/notifications"); setIsMoreOpen(false); }}
+                className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-black/5 text-[#262626] transition-all group"
+              >
                 <Heart className="w-6 h-6 shrink-0 group-hover:scale-105 transition-transform" />
                 <span className="text-sm font-semibold hidden xl:inline">Notifications</span>
               </button>
@@ -648,6 +652,10 @@ export default function HomePage({ onLogout, token }) {
           ) : activeView === "settings" ? (
             <div className="w-full mt-12 md:mt-0">
               <SettingsPage token={token} />
+            </div>
+          ) : activeView === "notifications" ? (
+            <div className="w-full mt-12 md:mt-0">
+              <NotificationsPage token={token} />
             </div>
           ) : (
             <div className="w-full mt-12 md:mt-0">
