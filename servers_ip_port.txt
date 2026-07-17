@@ -16,3 +16,4 @@ Below is the list of active services and servers running in the Instagram Clone 
 | **MinIO Storage Server** | `localhost` | `9000` | S3 API | Object storage backend endpoint for file uploads (`minio`) |
 | **MinIO Storage Console** | `localhost` | `9001` | HTTP (Web) | Admin UI console for MinIO storage bucket management |
 | **PostgreSQL Database** | `localhost` | `5432` | PostgreSQL | SQL database storing tables like users (defined in backend connection URLs) |
+| **Chat Service (REST/WS)** | `127.0.0.1` / `localhost` | `8001` | HTTP / WS | FastAPI messaging & real-time WebSocket communication server |
