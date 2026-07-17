@@ -71,12 +71,22 @@ class UserGrpcService(user_pb2_grpc.UserServiceServicer):
         if privacy:
             is_private = (privacy.account_visibility == AccountVisibility.PRIVATE)
 
+        avatar_url = ""
+        if profile.profile_picture_key:
+            try:
+                from app.core.storage import StorageFactory
+                from app.storage.buckets import Buckets
+                storage = StorageFactory.get_storage()
+                avatar_url = await storage.get_url(Buckets.PROFILE_IMAGES, profile.profile_picture_key)
+            except Exception as e:
+                logger.error("Failed to resolve avatar URL via MinIO: %s", str(e))
+
         return user_pb2.UserProfileResponse(
             user_id=str(profile.user_id),
             username=profile.username,
             display_name=profile.display_name or "",
             bio=profile.bio or "",
-            profile_picture=profile.profile_picture_url or "",
+            profile_picture=avatar_url,
             is_private=is_private
         )
 

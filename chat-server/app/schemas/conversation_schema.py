@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from uuid import UUID
 from datetime import datetime
+from typing import Optional
 
 
 class ConversationCreateRequest(BaseModel):
@@ -13,6 +14,12 @@ class ConversationResponse(BaseModel):
     user_two_id: UUID
     created_at: datetime
     updated_at: datetime
+
+    # Enriched via gRPC — resolved by chat-server at list time
+    partner_id: Optional[UUID] = None
+    partner_username: Optional[str] = None
+    partner_display_name: Optional[str] = None
+    partner_profile_picture: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -30,4 +37,3 @@ class MessageResponse(BaseModel):
 
     class Config:
         from_attributes = True
-

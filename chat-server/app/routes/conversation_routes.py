@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 
 from app.routes.dependencies import get_current_user_id, get_conversation_service
 from app.schemas.conversation_schema import ConversationCreateRequest, ConversationResponse, MessageResponse
@@ -9,8 +9,15 @@ from app.service.conversation_service import ConversationService
 router = APIRouter(prefix="/conversations", tags=["Conversations"])
 
 
+def _extract_token(request: Request) -> str:
+    """Extract the raw JWT from the Authorization header."""
+    auth = request.headers.get("Authorization", "")
+    return auth.split(" ", 1)[1] if auth.lower().startswith("bearer ") else auth
+
+
 @router.post("", response_model=APIResponse[ConversationResponse], status_code=status.HTTP_201_CREATED)
 async def create_conversation(
+    request: Request,
     payload: ConversationCreateRequest,
     current_user_id: uuid.UUID = Depends(get_current_user_id),
     service: ConversationService = Depends(get_conversation_service)
@@ -19,18 +26,21 @@ async def create_conversation(
     Create a new 1-to-1 conversation between the authenticated user and another user.
     Ensures no duplicate conversation can exist between the same pair.
     """
-    return await service.create_conversation(current_user_id, payload.user_two_id)
+    token = _extract_token(request)
+    return await service.create_conversation(current_user_id, payload.user_two_id, token)
 
 
 @router.get("", response_model=APIResponse[list[ConversationResponse]])
 async def list_conversations(
+    request: Request,
     current_user_id: uuid.UUID = Depends(get_current_user_id),
     service: ConversationService = Depends(get_conversation_service)
 ):
     """
-    Retrieve all conversations for the authenticated user.
+    Retrieve all conversations for the authenticated user, enriched with partner profiles.
     """
-    return await service.list_user_conversations(current_user_id)
+    token = _extract_token(request)
+    return await service.list_user_conversations(current_user_id, token)
 
 
 @router.get("/{conversation_id}/messages", response_model=APIResponse[list[MessageResponse]])
@@ -43,4 +53,3 @@ async def get_messages(
     Retrieve message history for a specific conversation.
     """
     return await service.list_conversation_messages(conversation_id, current_user_id)
-

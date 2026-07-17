@@ -34,9 +34,9 @@ export default function ChatsPage({ token }) {
   const [messageText, setMessageText] = useState("");
   const messagesEndRef = useRef(null);
 
-  // ─── User Profile Cache ───────────────────────────────────────────────────
-  const [userCache, setUserCache] = useState({});
-  const userCacheRef = useRef({});
+  // ─── Unread tracking (per-conversation) ─────────────────────────────────
+  // Stores conversation IDs that have received new messages since last viewed
+  const [unreadConvIds, setUnreadConvIds] = useState(new Set());
 
   // ─── New Chat Modal ───────────────────────────────────────────────────────
   const [showModal, setShowModal] = useState(false);
@@ -101,37 +101,7 @@ export default function ChatsPage({ token }) {
 
   useEffect(() => { fetchConversations(); }, [fetchConversations]);
 
-  // ─── 3. Fetch + cache a user profile by UUID ─────────────────────────────
-  const fetchUser = useCallback(async (userId) => {
-    if (!userId || userCacheRef.current[userId]) return userCacheRef.current[userId];
-    try {
-      const res = await fetch(`${USER_API_BASE_URL}/user-profile/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const d = await res.json();
-        if (d.success && d.data) {
-          userCacheRef.current[userId] = d.data;
-          setUserCache(prev => ({ ...prev, [userId]: d.data }));
-          return d.data;
-        }
-      }
-    } catch (err) {
-      console.error("Failed to fetch user:", userId, err);
-    }
-    return null;
-  }, [token]);
-
-  // Prefetch avatars for all conversations as soon as we know our userId
-  useEffect(() => {
-    if (!myUserId || conversations.length === 0) return;
-    conversations.forEach(conv => {
-      const partnerId = conv.user_one_id === myUserId ? conv.user_two_id : conv.user_one_id;
-      if (partnerId) fetchUser(partnerId);
-    });
-  }, [conversations, myUserId, fetchUser]);
-
-  // ─── 4. Fetch messages when active conv changes ───────────────────────────
+  // ─── 3. Fetch messages when active conv changes ───────────────────────────
   useEffect(() => {
     if (!activeConvId) { setMessages([]); return; }
     const run = async () => {
@@ -158,14 +128,7 @@ export default function ChatsPage({ token }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Also fetch partner profile when active conv changes
-  useEffect(() => {
-    if (!activeConv || !myUserId) return;
-    const partnerId = activeConv.user_one_id === myUserId ? activeConv.user_two_id : activeConv.user_one_id;
-    if (partnerId) fetchUser(partnerId);
-  }, [activeConv, myUserId, fetchUser]);
-
-  // ─── 5. WebSocket ─────────────────────────────────────────────────────────
+  // ─── 4. WebSocket ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!token) return;
     let isConnected = false;
@@ -192,8 +155,13 @@ export default function ChatsPage({ token }) {
             // Append message to current conversation if visible
             if (msg.conversation_id === activeConvIdRef.current) {
               setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
+            } else {
+              // Mark this conversation as having unread messages
+              setUnreadConvIds(prev => new Set([...prev, msg.conversation_id]));
+              // Notify the global nav bar
+              window.dispatchEvent(new CustomEvent("chat:unread"));
             }
-            // Bump conversation updated_at in list
+            // Bump conversation to top of list
             setConversations(prev =>
               prev.map(c => c.id === msg.conversation_id ? { ...c, updated_at: new Date().toISOString() } : c)
             );
@@ -331,10 +299,15 @@ export default function ChatsPage({ token }) {
     (f.display_name?.toLowerCase() || "").includes(friendSearch.toLowerCase())
   );
 
+  // Partner data comes pre-enriched from the chat-server via gRPC — no extra HTTP calls needed
   const getPartner = (conv) => {
-    if (!conv || !myUserId) return null;
-    const partnerId = conv.user_one_id === myUserId ? conv.user_two_id : conv.user_one_id;
-    return userCache[partnerId] || null;
+    if (!conv) return null;
+    return {
+      id: conv.partner_id,
+      username: conv.partner_username,
+      display_name: conv.partner_display_name,
+      profile_picture_url: conv.partner_profile_picture,
+    };
   };
 
   const activePartner = activeConv ? getPartner(activeConv) : null;
@@ -410,19 +383,33 @@ export default function ChatsPage({ token }) {
             conversations.map(conv => {
               const partner = getPartner(conv);
               const isActive = conv.id === activeConvId;
+              const hasUnread = !isActive && unreadConvIds.has(conv.id);
               return (
                 <button
                   key={conv.id}
-                  onClick={() => setActiveConvId(conv.id)}
+                  onClick={() => {
+                    setActiveConvId(conv.id);
+                    // Clear unread dot when user opens this conversation
+                    setUnreadConvIds(prev => {
+                      const next = new Set(prev);
+                      next.delete(conv.id);
+                      return next;
+                    });
+                  }}
                   className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left ${isActive ? "bg-blue-50" : ""}`}
                 >
                   <Avatar url={partner?.profile_picture_url} name={partner?.username} size="md" />
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm truncate ${isActive ? "font-bold text-blue-600" : "font-semibold text-slate-800"}`}>
+                    <p className={`text-sm truncate ${hasUnread ? "font-bold text-slate-900" : isActive ? "font-bold text-blue-600" : "font-semibold text-slate-800"}`}>
                       {partner?.username || "Loading..."}
                     </p>
-                    <p className="text-xs text-slate-400 truncate">{partner?.display_name || ""}</p>
+                    <p className={`text-xs truncate ${hasUnread ? "text-slate-600 font-medium" : "text-slate-400"}`}>
+                      {hasUnread ? "New message" : (partner?.display_name || "")}
+                    </p>
                   </div>
+                  {hasUnread && (
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500 flex-shrink-0" />
+                  )}
                 </button>
               );
             })

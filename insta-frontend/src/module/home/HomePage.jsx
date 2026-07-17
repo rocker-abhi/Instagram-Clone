@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { 
   Home, Search, MessageCircle, Heart, PlusSquare, User, LogOut, 
@@ -148,6 +148,25 @@ export default function HomePage({ onLogout, token }) {
   const location = useLocation();
   const activeView = location.pathname === "/profile" ? "profile" : location.pathname === "/search" ? "search" : location.pathname === "/settings" ? "settings" : location.pathname === "/requests" ? "requests" : location.pathname === "/notifications" ? "notifications" : location.pathname === "/chats" ? "chats" : "feed";
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [hasUnreadChat, setHasUnreadChat] = useState(false);
+  const activeViewRef = useRef(activeView);
+
+  // Keep ref in sync so the event listener always sees the current route
+  useEffect(() => {
+    activeViewRef.current = activeView;
+    // Clear the dot as soon as the user lands on /chats
+    if (activeView === "chats") setHasUnreadChat(false);
+  }, [activeView]);
+
+  // Listen for new incoming chat messages dispatched by ChatsPage
+  useEffect(() => {
+    const handleUnread = () => {
+      // Only badge if the user is NOT already viewing chats
+      if (activeViewRef.current !== "chats") setHasUnreadChat(true);
+    };
+    window.addEventListener("chat:unread", handleUnread);
+    return () => window.removeEventListener("chat:unread", handleUnread);
+  }, []);
 
   // Story progress timer
   useEffect(() => {
@@ -280,8 +299,12 @@ export default function HomePage({ onLogout, token }) {
                 onClick={() => { navigate("/chats"); setIsMoreOpen(false); }}
                 className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-black/5 text-[#262626] transition-all group relative"
               >
-                <MessageCircle className="w-6 h-6 shrink-0 group-hover:scale-105 transition-transform" />
-                <span className="absolute left-7 top-2.5 w-2 h-2 bg-red-500 rounded-full" />
+                <div className="relative">
+                  <MessageCircle className="w-6 h-6 shrink-0 group-hover:scale-105 transition-transform" />
+                  {hasUnreadChat && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+                  )}
+                </div>
                 <span className="text-sm font-semibold hidden xl:inline">Messages</span>
               </button>
               <button 
@@ -364,7 +387,12 @@ export default function HomePage({ onLogout, token }) {
           </span>
           <div className="flex items-center gap-4">
             <Heart className="w-6 h-6 text-[#262626] cursor-pointer" onClick={() => navigate("/notifications")} />
-            <MessageCircle className="w-6 h-6 text-[#262626] cursor-pointer" onClick={() => navigate("/chats")} />
+            <div className="relative cursor-pointer" onClick={() => navigate("/chats")}>
+              <MessageCircle className="w-6 h-6 text-[#262626]" />
+              {hasUnreadChat && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+              )}
+            </div>
           </div>
         </header>
 
