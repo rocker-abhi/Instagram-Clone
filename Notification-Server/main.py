@@ -11,7 +11,6 @@ from app.kafka.handler.user_registered_handler import UserRegisteredHandler
 from app.kafka.handler.email_verified_handler import EmailVerifiedHandler
 from app.kafka.handler.password_reset_completed_handler import PasswordResetCompletedHandler
 from app.kafka.handler.password_reset_requested_handler import PasswordResetRequestedHandler
-from app.kafka.handler.notification_created_handler import NotificationCreatedHandler
 from app.kafka.consumer_manager import ConsumerManager
 from app.kafka.consumers.notification_consumer import NotificationConsumer
 from app.kafka.kafka_client import kafka_client
@@ -35,9 +34,6 @@ registry.register(
 registry.register(
     KafakTopics.USER_PASSWORD_RESET_REQUESTED, PasswordResetRequestedHandler(email_service)
 )
-registry.register(
-    KafakTopics.NOTIFICATION_CREATED, NotificationCreatedHandler()
-)
 
 manager = ConsumerManager()
 consumer = kafka_client.create_consumer(
@@ -45,8 +41,7 @@ consumer = kafka_client.create_consumer(
         KafakTopics.USER_REGISTERED, 
         KafakTopics.EMAIL_VERIFIED, 
         KafakTopics.USER_PASSWORD_RESET_COMPLETED,
-        KafakTopics.USER_PASSWORD_RESET_REQUESTED,
-        KafakTopics.NOTIFICATION_CREATED
+        KafakTopics.USER_PASSWORD_RESET_REQUESTED
     ],
     group_id="notification-service"
 )

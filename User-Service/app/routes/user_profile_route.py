@@ -1,4 +1,5 @@
 import logging
+import uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, UploadFile, File, Form
 from app.service.user_profile_service import UserProfileService
@@ -296,6 +297,25 @@ async def get_user_profile(
     """
     user_uuid = extract_user_uuid(current_user)
     profile_response = await service.get_profile_by_user_id(user_uuid)
+    return APIResponse(
+        success=True,
+        message="User profile retrieved successfully",
+        data=profile_response,
+    )
+
+
+@router.get("/{user_id}", response_model=APIResponse[UserProfileResponse])
+async def get_user_profile_by_id(
+    user_id: uuid.UUID,
+    current_user: dict = Depends(get_current_user),
+    service: UserProfileService = Depends(get_user_profile_service),
+):
+    """
+    GET /user-profile/{user_id}
+
+    Retrieve another user's profile details by their UUID.
+    """
+    profile_response = await service.get_profile_by_user_id(user_id)
     return APIResponse(
         success=True,
         message="User profile retrieved successfully",

@@ -3,4 +3,3 @@ class KafakTopics:
     EMAIL_VERIFIED = "email.verified"
     USER_PASSWORD_RESET_COMPLETED = "user.password.reset.completed"
     USER_PASSWORD_RESET_REQUESTED = "user.password.reset.requested"
-    NOTIFICATION_CREATED = "notification.created"

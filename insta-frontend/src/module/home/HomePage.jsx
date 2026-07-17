@@ -9,6 +9,7 @@ import SearchPage from "../search/SearchPage";
 import SettingsPage from "../settings/SettingsPage";
 import RequestsPage from "../requests/RequestsPage";
 import NotificationsPage from "../notifications/NotificationsPage";
+import ChatsPage from "../chats/ChatsPage";
 import { USER_API_BASE_URL } from "../../config";
 
 const InstagramIcon = (props) => (
@@ -145,7 +146,7 @@ export default function HomePage({ onLogout, token }) {
   const [likeAnimationId, setLikeAnimationId] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const activeView = location.pathname === "/profile" ? "profile" : location.pathname === "/search" ? "search" : location.pathname === "/settings" ? "settings" : location.pathname === "/requests" ? "requests" : location.pathname === "/notifications" ? "notifications" : "feed";
+  const activeView = location.pathname === "/profile" ? "profile" : location.pathname === "/search" ? "search" : location.pathname === "/settings" ? "settings" : location.pathname === "/requests" ? "requests" : location.pathname === "/notifications" ? "notifications" : location.pathname === "/chats" ? "chats" : "feed";
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   // Story progress timer
@@ -275,7 +276,10 @@ export default function HomePage({ onLogout, token }) {
                 <span className="text-sm font-semibold hidden xl:inline">Search</span>
               </button>
 
-              <button className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-black/5 text-[#262626] transition-all group relative">
+              <button 
+                onClick={() => { navigate("/chats"); setIsMoreOpen(false); }}
+                className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-black/5 text-[#262626] transition-all group relative"
+              >
                 <MessageCircle className="w-6 h-6 shrink-0 group-hover:scale-105 transition-transform" />
                 <span className="absolute left-7 top-2.5 w-2 h-2 bg-red-500 rounded-full" />
                 <span className="text-sm font-semibold hidden xl:inline">Messages</span>
@@ -359,8 +363,8 @@ export default function HomePage({ onLogout, token }) {
             Instagram
           </span>
           <div className="flex items-center gap-4">
-            <Heart className="w-6 h-6 text-[#262626]" />
-            <MessageCircle className="w-6 h-6 text-[#262626]" />
+            <Heart className="w-6 h-6 text-[#262626] cursor-pointer" onClick={() => navigate("/notifications")} />
+            <MessageCircle className="w-6 h-6 text-[#262626] cursor-pointer" onClick={() => navigate("/chats")} />
           </div>
         </header>
 
@@ -656,6 +660,10 @@ export default function HomePage({ onLogout, token }) {
           ) : activeView === "notifications" ? (
             <div className="w-full mt-12 md:mt-0">
               <NotificationsPage token={token} />
+            </div>
+          ) : activeView === "chats" ? (
+            <div className="w-full mt-12 md:mt-0">
+              <ChatsPage token={token} />
             </div>
           ) : (
             <div className="w-full mt-12 md:mt-0">
