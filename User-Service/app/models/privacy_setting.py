@@ -40,12 +40,6 @@ class PrivacySetting(Base):
         nullable=False,
         comment="Visibility category setting (PUBLIC or PRIVATE)"
     )
-    allow_message_requests: Mapped[bool] = mapped_column(
-        Boolean,
-        default=True,
-        nullable=False,
-        comment="Flag indicating if message requests from non-followers are allowed"
-    )
     show_activity_status: Mapped[bool] = mapped_column(
         Boolean,
         default=True,

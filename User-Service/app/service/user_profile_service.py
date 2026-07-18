@@ -264,7 +264,6 @@ class UserProfileService:
 
         return PrivacySettingsResponse(
             account_visibility=privacy.account_visibility,
-            allow_message_requests=privacy.allow_message_requests,
             show_activity_status=privacy.show_activity_status,
         )
 
@@ -284,8 +283,6 @@ class UserProfileService:
 
         if update_req.account_visibility is not None:
             privacy.account_visibility = update_req.account_visibility
-        if update_req.allow_message_requests is not None:
-            privacy.allow_message_requests = update_req.allow_message_requests
         if update_req.show_activity_status is not None:
             privacy.show_activity_status = update_req.show_activity_status
 
@@ -313,7 +310,6 @@ class UserProfileService:
 
         return PrivacySettingsResponse(
             account_visibility=privacy.account_visibility,
-            allow_message_requests=privacy.allow_message_requests,
             show_activity_status=privacy.show_activity_status,
         )
 

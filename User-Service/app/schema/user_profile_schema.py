@@ -134,12 +134,10 @@ class UserProfileUpdateRequest(BaseModel):
 
 class PrivacySettingsResponse(BaseModel):
     account_visibility: AccountVisibility
-    allow_message_requests: bool
     show_activity_status: bool
 
 class PrivacySettingsUpdateRequest(BaseModel):
     account_visibility: Optional[AccountVisibility] = None
-    allow_message_requests: Optional[bool] = None
     show_activity_status: Optional[bool] = None
 
 

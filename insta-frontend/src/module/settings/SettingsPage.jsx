@@ -6,7 +6,6 @@ import { gsap } from "gsap";
 export default function SettingsPage({ token }) {
   const [settings, setSettings] = useState({
     account_visibility: "PUBLIC",
-    allow_message_requests: true,
     show_activity_status: true,
   });
   const [loading, setLoading] = useState(true);
@@ -292,33 +291,6 @@ export default function SettingsPage({ token }) {
           </button>
         </div>
 
-        {/* Message Requests */}
-        <div className="flex items-center justify-between p-4 rounded-2xl border border-premium-border/50 hover:border-premium-border transition-all bg-premium-bg/30">
-          <div className="flex items-start gap-4">
-            <div className="p-2 bg-premium-gray rounded-xl text-accent-cyan shrink-0 border border-premium-border">
-              <MessageSquare className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-xs font-bold text-premium-text">Allow Message Requests</h3>
-              <p className="text-[10px] text-premium-muted mt-1 max-w-[320px] leading-relaxed">
-                Choose if people who do not follow you can initiate chat requests.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => handleToggle("allow_message_requests", !settings.allow_message_requests)}
-            disabled={saving}
-            className={`w-10 h-5.5 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 ${
-              settings.allow_message_requests ? "bg-accent-cyan" : "bg-premium-gray"
-            }`}
-          >
-            <div
-              className={`bg-white w-3.5 h-3.5 rounded-full shadow transition-transform duration-200 ${
-                settings.allow_message_requests ? "translate-x-4.5" : ""
-              }`}
-            />
-          </button>
-        </div>
 
         {/* Activity State */}
         <div className="flex items-center justify-between p-4 rounded-2xl border border-premium-border/50 hover:border-premium-border transition-all bg-premium-bg/30">
