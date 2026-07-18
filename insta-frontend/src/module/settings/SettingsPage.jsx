@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Settings, Shield, MessageSquare, Eye, Loader2, CheckCircle2, AlertCircle, KeyRound, ArrowLeft } from "lucide-react";
 import { USER_API_BASE_URL, API_BASE_URL } from "../../config";
+import { gsap } from "gsap";
 
 export default function SettingsPage({ token }) {
   const [settings, setSettings] = useState({
@@ -12,12 +13,21 @@ export default function SettingsPage({ token }) {
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState({ type: null, message: "" }); // 'success' | 'error'
 
-  // Change Password Form State
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [passwordSaving, setPasswordSaving] = useState(false);
+
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    gsap.fromTo(
+      containerRef.current,
+      { opacity: 0, scale: 0.98 },
+      { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" }
+    );
+  }, [showPasswordForm]);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -43,7 +53,6 @@ export default function SettingsPage({ token }) {
     fetchSettings();
   }, [token]);
 
-  // Real-time password validation
   useEffect(() => {
     if (!password) {
       setPasswordError("");
@@ -110,7 +119,6 @@ export default function SettingsPage({ token }) {
     setStatus({ type: null, message: "" });
 
     try {
-      // Call the backend change-password route directly
       const resetRes = await fetch(`${API_BASE_URL}/auth/change-password`, {
         method: "POST",
         headers: {
@@ -145,68 +153,68 @@ export default function SettingsPage({ token }) {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-purple-600 mb-2" />
-        <span className="text-slate-400 text-sm">Loading settings...</span>
+      <div className="flex flex-col items-center justify-center min-h-[400px] bg-premium-bg">
+        <Loader2 className="w-6 h-6 animate-spin text-accent-cyan mb-2" />
+        <span className="text-premium-muted text-xs font-semibold">Loading settings...</span>
       </div>
     );
   }
 
   if (showPasswordForm) {
     return (
-      <div className="w-full max-w-[600px] mx-auto px-4 py-8 bg-white rounded-3xl border border-[#efefef] shadow-[0_10px_30px_rgba(0,0,0,0.02)] mt-4">
+      <div ref={containerRef} className="w-full max-w-[600px] mx-auto px-6 py-8 bg-premium-card border border-premium-border rounded-3xl shadow-premium mt-4">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8 pb-4 border-b border-[#efefef]">
+        <div className="flex items-center gap-4 mb-8 pb-4 border-b border-premium-border/50">
           <button 
             onClick={() => {
               setShowPasswordForm(false);
               setStatus({ type: null, message: "" });
             }}
-            className="p-2 hover:bg-slate-50 rounded-full transition-colors text-slate-600 hover:text-slate-900"
+            className="p-2 hover:bg-premium-gray rounded-full transition-colors text-premium-text cursor-pointer"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-5 h-5" />
           </button>
-          <h2 className="text-xl font-bold text-[#262626]">Change Password</h2>
+          <h2 className="text-lg font-bold font-display text-premium-text">Change Password</h2>
         </div>
 
         {status.message && (
-          <div className={`flex items-center gap-3 p-4 mb-6 rounded-2xl border text-sm font-semibold transition-all
+          <div className={`flex items-center gap-3 p-4 mb-6 rounded-2xl border text-xs font-semibold transition-all
             ${status.type === "success" 
-              ? "bg-green-50 border-green-200 text-green-700" 
-              : "bg-red-50 border-red-200 text-red-700"}`}
+              ? "bg-accent-emerald/10 border-accent-emerald/20 text-accent-emerald" 
+              : "bg-accent-coral/10 border-accent-coral/20 text-accent-coral"}`}
           >
-            {status.type === "success" ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}
+            {status.type === "success" ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
             <span>{status.message}</span>
           </div>
         )}
 
         <form onSubmit={handlePasswordResetSubmit} className="space-y-6">
-          {/* New Password Input */}
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-[#262626]">New Password</label>
+          {/* New Password */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-premium-muted uppercase tracking-wider">New Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Create strong new password"
-              className={`w-full px-4 py-3 rounded-xl border focus:outline-none text-sm transition-all
-                ${passwordError ? "border-red-300 focus:border-red-500" : "border-slate-200 focus:border-purple-500"}`}
+              placeholder="Create strong password"
+              className={`w-full px-4 py-3 bg-premium-bg rounded-2xl border text-xs focus:outline-none focus:ring-1 transition-all
+                ${passwordError ? "border-accent-coral focus:border-accent-coral focus:ring-accent-coral/30" : "border-premium-border focus:border-accent-blue focus:ring-accent-blue/30"}`}
             />
           </div>
 
-          {/* Confirm New Password Input */}
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-[#262626]">Confirm New Password</label>
+          {/* Confirm Password */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-premium-muted uppercase tracking-wider">Confirm Password</label>
             <input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm new password"
-              className={`w-full px-4 py-3 rounded-xl border focus:outline-none text-sm transition-all
-                ${passwordError ? "border-red-300 focus:border-red-500" : "border-slate-200 focus:border-purple-500"}`}
+              placeholder="Confirm password"
+              className={`w-full px-4 py-3 bg-premium-bg rounded-2xl border text-xs focus:outline-none focus:ring-1 transition-all
+                ${passwordError ? "border-accent-coral focus:border-accent-coral focus:ring-accent-coral/30" : "border-premium-border focus:border-accent-blue focus:ring-accent-blue/30"}`}
             />
             {passwordError && (
-              <p className="text-xs font-semibold text-red-500">{passwordError}</p>
+              <p className="text-[10px] font-bold text-accent-coral mt-1">{passwordError}</p>
             )}
           </div>
 
@@ -218,16 +226,16 @@ export default function SettingsPage({ token }) {
                 setShowPasswordForm(false);
                 setStatus({ type: null, message: "" });
               }}
-              className="px-6 py-3 border border-slate-200 text-slate-700 font-bold text-sm rounded-xl transition-all active:scale-95"
+              className="px-5 py-2.5 bg-premium-gray hover:bg-premium-gray/80 text-premium-text font-bold text-xs rounded-2xl transition-all cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={passwordSaving || !password || !confirmPassword || !!passwordError}
-              className="inline-flex items-center justify-center gap-2 bg-[#0095f6] hover:bg-[#00376b] disabled:opacity-50 text-white font-bold text-sm px-8 py-3 rounded-xl transition-all active:scale-95 shadow-[0_4px_12px_rgba(0,149,246,0.2)]"
+              className="inline-flex items-center justify-center gap-2 bg-white text-premium-bg disabled:opacity-50 font-bold text-xs px-6 py-2.5 rounded-2xl transition-all shadow hover:bg-slate-100 cursor-pointer"
             >
-              {passwordSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+              {passwordSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Save Password
             </button>
           </div>
@@ -237,127 +245,127 @@ export default function SettingsPage({ token }) {
   }
 
   return (
-    <div className="w-full max-w-[600px] mx-auto px-4 py-8 bg-white rounded-3xl border border-[#efefef] shadow-[0_10px_30px_rgba(0,0,0,0.02)] mt-4">
+    <div ref={containerRef} className="w-full max-w-[600px] mx-auto px-6 py-8 bg-premium-card border border-premium-border rounded-3xl shadow-premium mt-4">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8 pb-4 border-b border-[#efefef]">
-        <Settings className="w-6 h-6 text-slate-700" />
-        <h2 className="text-xl font-bold text-[#262626]">Settings & Privacy</h2>
+      <div className="flex items-center gap-4 mb-8 pb-4 border-b border-premium-border/50">
+        <Settings className="w-5 h-5 text-accent-cyan" />
+        <h2 className="text-lg font-bold font-display text-premium-text">Settings & Privacy</h2>
       </div>
 
       {status.message && (
-        <div className={`flex items-center gap-3 p-4 mb-6 rounded-2xl border text-sm font-semibold transition-all
+        <div className={`flex items-center gap-3 p-4 mb-6 rounded-2xl border text-xs font-semibold transition-all
           ${status.type === "success" 
-            ? "bg-green-50 border-green-200 text-green-700" 
-            : "bg-red-50 border-red-200 text-red-700"}`}
+            ? "bg-accent-emerald/10 border-accent-emerald/20 text-accent-emerald" 
+            : "bg-accent-coral/10 border-accent-coral/20 text-accent-coral"}`}
         >
-          {status.type === "success" ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}
+          {status.type === "success" ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
           <span>{status.message}</span>
         </div>
       )}
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Account Visibility */}
-        <div className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 hover:border-purple-200 transition-all bg-slate-50/50">
+        <div className="flex items-center justify-between p-4 rounded-2xl border border-premium-border/50 hover:border-premium-border transition-all bg-premium-bg/30">
           <div className="flex items-start gap-4">
-            <div className="p-2 bg-purple-50 rounded-xl text-purple-600 shrink-0">
-              <Eye className="w-5 h-5" />
+            <div className="p-2 bg-premium-gray rounded-xl text-accent-cyan shrink-0 border border-premium-border">
+              <Eye className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-[#262626]">Private Account</h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-[340px]">
-                When your account is private, only people you approve can see your photos and videos.
+              <h3 className="text-xs font-bold text-premium-text">Private Account</h3>
+              <p className="text-[10px] text-premium-muted mt-1 max-w-[320px] leading-relaxed">
+                When your account is private, only approved followers can see your profile posts.
               </p>
             </div>
           </div>
           <button
             onClick={() => handleToggle("account_visibility", settings.account_visibility === "PRIVATE" ? "PUBLIC" : "PRIVATE")}
             disabled={saving}
-            className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${
-              settings.account_visibility === "PRIVATE" ? "bg-purple-600" : "bg-slate-300"
+            className={`w-10 h-5.5 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 ${
+              settings.account_visibility === "PRIVATE" ? "bg-accent-cyan" : "bg-premium-gray"
             }`}
           >
             <div
-              className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${
-                settings.account_visibility === "PRIVATE" ? "translate-x-6" : ""
+              className={`bg-white w-3.5 h-3.5 rounded-full shadow transition-transform duration-200 ${
+                settings.account_visibility === "PRIVATE" ? "translate-x-4.5" : ""
               }`}
             />
           </button>
         </div>
 
         {/* Message Requests */}
-        <div className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 hover:border-purple-200 transition-all bg-slate-50/50">
+        <div className="flex items-center justify-between p-4 rounded-2xl border border-premium-border/50 hover:border-premium-border transition-all bg-premium-bg/30">
           <div className="flex items-start gap-4">
-            <div className="p-2 bg-purple-50 rounded-xl text-purple-600 shrink-0">
-              <MessageSquare className="w-5 h-5" />
+            <div className="p-2 bg-premium-gray rounded-xl text-accent-cyan shrink-0 border border-premium-border">
+              <MessageSquare className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-[#262626]">Allow Message Requests</h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-[340px]">
-                Choose if people who don't follow you can send you message requests.
+              <h3 className="text-xs font-bold text-premium-text">Allow Message Requests</h3>
+              <p className="text-[10px] text-premium-muted mt-1 max-w-[320px] leading-relaxed">
+                Choose if people who do not follow you can initiate chat requests.
               </p>
             </div>
           </div>
           <button
             onClick={() => handleToggle("allow_message_requests", !settings.allow_message_requests)}
             disabled={saving}
-            className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${
-              settings.allow_message_requests ? "bg-purple-600" : "bg-slate-300"
+            className={`w-10 h-5.5 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 ${
+              settings.allow_message_requests ? "bg-accent-cyan" : "bg-premium-gray"
             }`}
           >
             <div
-              className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${
-                settings.allow_message_requests ? "translate-x-6" : ""
+              className={`bg-white w-3.5 h-3.5 rounded-full shadow transition-transform duration-200 ${
+                settings.allow_message_requests ? "translate-x-4.5" : ""
               }`}
             />
           </button>
         </div>
 
         {/* Activity State */}
-        <div className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 hover:border-purple-200 transition-all bg-slate-50/50">
+        <div className="flex items-center justify-between p-4 rounded-2xl border border-premium-border/50 hover:border-premium-border transition-all bg-premium-bg/30">
           <div className="flex items-start gap-4">
-            <div className="p-2 bg-purple-50 rounded-xl text-purple-600 shrink-0">
-              <Shield className="w-5 h-5" />
+            <div className="p-2 bg-premium-gray rounded-xl text-accent-cyan shrink-0 border border-premium-border">
+              <Shield className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-[#262626]">Show Activity Status</h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-[340px]">
-                Allow accounts you follow and anyone you message to see when you were last active.
+              <h3 className="text-xs font-bold text-premium-text">Show Activity Status</h3>
+              <p className="text-[10px] text-premium-muted mt-1 max-w-[320px] leading-relaxed">
+                Allow accounts you follow to see when you are active.
               </p>
             </div>
           </div>
           <button
             onClick={() => handleToggle("show_activity_status", !settings.show_activity_status)}
             disabled={saving}
-            className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${
-              settings.show_activity_status ? "bg-purple-600" : "bg-slate-300"
+            className={`w-10 h-5.5 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 ${
+              settings.show_activity_status ? "bg-accent-cyan" : "bg-premium-gray"
             }`}
           >
             <div
-              className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${
-                settings.show_activity_status ? "translate-x-6" : ""
+              className={`bg-white w-3.5 h-3.5 rounded-full shadow transition-transform duration-200 ${
+                settings.show_activity_status ? "translate-x-4.5" : ""
               }`}
             />
           </button>
         </div>
 
-        {/* Change Password Button Trigger */}
-        <div className="pt-4 border-t border-[#efefef]">
+        {/* Change Password Trigger */}
+        <div className="pt-4 border-t border-premium-border/50">
           <button
             onClick={() => setShowPasswordForm(true)}
-            className="w-full flex items-center justify-between p-4 rounded-2xl border border-slate-100 hover:border-purple-200 transition-all bg-slate-50/50 cursor-pointer"
+            className="w-full flex items-center justify-between p-4 rounded-2xl border border-premium-border/50 hover:border-premium-border transition-all bg-premium-bg/30 cursor-pointer"
           >
             <div className="flex items-center gap-4">
-              <div className="p-2 bg-purple-50 rounded-xl text-purple-600 shrink-0">
-                <KeyRound className="w-5 h-5" />
+              <div className="p-2 bg-premium-gray rounded-xl text-accent-cyan shrink-0 border border-premium-border">
+                <KeyRound className="w-4 h-4" />
               </div>
               <div className="text-left">
-                <h3 className="text-sm font-bold text-[#262626]">Change Password</h3>
-                <p className="text-xs text-slate-400 mt-1">
-                  Update your account password with security requirements.
+                <h3 className="text-xs font-bold text-premium-text">Change Password</h3>
+                <p className="text-[10px] text-premium-muted mt-1 leading-relaxed">
+                  Update and verify secure credentials.
                 </p>
               </div>
             </div>
-            <span className="text-xs text-purple-600 font-semibold px-3 py-1 bg-purple-50 rounded-full">
+            <span className="text-[9px] text-accent-cyan font-bold px-3 py-1.5 bg-premium-bg border border-premium-border rounded-xl">
               Change
             </span>
           </button>

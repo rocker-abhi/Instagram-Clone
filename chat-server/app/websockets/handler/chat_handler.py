@@ -71,6 +71,7 @@ class ChatHandler:
             "content": message.content,
             "reply_to_message_id": str(message.reply_to_message_id) if message.reply_to_message_id else None,
             "created_at": message.created_at.isoformat(),
+            "is_edited": message.is_edited,
         }
 
         ws_message = {

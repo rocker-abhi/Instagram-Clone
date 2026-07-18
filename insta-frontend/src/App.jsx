@@ -163,11 +163,11 @@ export default function App() {
   const isFullView = token && isOnboardingCompleted && !isAuthActionPath;
 
   return (
-    <div className={`min-h-screen ${isFullView ? "bg-[#fafafa]" : "bg-slate-50"} text-slate-900 ${isFullView ? "" : "flex flex-col items-center justify-center p-4"} font-sans relative overflow-hidden`}>
+    <div className={`min-h-screen bg-premium-bg text-premium-text ${isFullView ? "" : "flex flex-col items-center justify-center p-4"} font-sans relative overflow-hidden`}>
       {!isFullView && (
         <>
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600/5 rounded-full blur-[100px] animate-pulse duration-10000 pointer-events-none" />
-          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-pink-600/5 rounded-full blur-[120px] animate-pulse duration-7000 pointer-events-none" />
+          <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-accent-blue/5 rounded-full blur-[120px] pointer-events-none" />
+          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-accent-cyan/5 rounded-full blur-[100px] pointer-events-none" />
         </>
       )}
 

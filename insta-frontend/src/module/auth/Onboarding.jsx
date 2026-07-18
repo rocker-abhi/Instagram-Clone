@@ -1,18 +1,8 @@
-import React, { useState, useRef } from "react";
-import {
-  Sparkles,
-  User,
-  FileText,
-  Camera,
-  LogOut,
-  AlertCircle,
-  CheckCircle2,
-  ShieldCheck,
-  ImageOff,
-} from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Sparkles, User, FileText, Camera, LogOut, AlertCircle, CheckCircle2, ShieldCheck, ImageOff } from "lucide-react";
 import { USER_API_BASE_URL } from "../../config";
+import { gsap } from "gsap";
 
-// Client-side guards (must match backend limits)
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -20,18 +10,25 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 export default function Onboarding({ token, onCompleteOnboarding, onLogout }) {
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
-  // Raw File object (sent as multipart) + an object URL for preview only
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState("");
   const [fileError, setFileError] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  
   const fileInputRef = useRef(null);
+  const containerRef = useRef(null);
 
-  // ─── File Selection ──────────────────────────────────────────────────────
+  useEffect(() => {
+    gsap.fromTo(
+      containerRef.current,
+      { opacity: 0, y: 30, filter: "blur(8px)" },
+      { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.8, ease: "power4.out" }
+    );
+  }, []);
+
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
-    // Reset previous state regardless of whether a file was chosen
     setFileError("");
     setAvatarFile(null);
     if (avatarPreviewUrl) {
@@ -41,22 +38,18 @@ export default function Onboarding({ token, onCompleteOnboarding, onLogout }) {
 
     if (!file) return;
 
-    // Client-side MIME type check
     if (!ALLOWED_MIME_TYPES.includes(file.type)) {
       setFileError(`Unsupported file type. Please upload a JPEG, PNG, or WebP image.`);
-      // Clear the file input so the same file can be reselected after fixing
       e.target.value = "";
       return;
     }
 
-    // Client-side size check
     if (file.size > MAX_FILE_SIZE_BYTES) {
       setFileError(`Image is too large. Maximum allowed size is ${MAX_FILE_SIZE_MB} MB.`);
       e.target.value = "";
       return;
     }
 
-    // All good — store the File reference and create a preview URL
     setAvatarFile(file);
     setAvatarPreviewUrl(URL.createObjectURL(file));
   };
@@ -74,7 +67,6 @@ export default function Onboarding({ token, onCompleteOnboarding, onLogout }) {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // ─── Submit ──────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -91,8 +83,6 @@ export default function Onboarding({ token, onCompleteOnboarding, onLogout }) {
     setIsLoading(true);
 
     try {
-      // Build multipart/form-data — the browser sets the correct Content-Type
-      // boundary automatically when using FormData; never set it manually.
       const formData = new FormData();
       formData.append("display_name", displayName.trim());
       formData.append("bio", bio.trim());
@@ -103,7 +93,6 @@ export default function Onboarding({ token, onCompleteOnboarding, onLogout }) {
       const response = await fetch(`${USER_API_BASE_URL}/user-profile/setup`, {
         method: "POST",
         headers: {
-          // ⚠️  Do NOT set Content-Type here — the browser adds it with the boundary
           Authorization: `Bearer ${token}`,
         },
         body: formData,
@@ -112,7 +101,6 @@ export default function Onboarding({ token, onCompleteOnboarding, onLogout }) {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Clean up the preview object URL to avoid memory leaks
         if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
         onCompleteOnboarding();
       } else {
@@ -126,71 +114,68 @@ export default function Onboarding({ token, onCompleteOnboarding, onLogout }) {
     }
   };
 
-  // ─── Render ──────────────────────────────────────────────────────────────
   return (
-    <div className="w-full max-w-4xl bg-white/70 backdrop-blur-lg border border-slate-200/60 rounded-3xl shadow-2xl flex flex-col md:flex-row overflow-hidden transition-all duration-500 my-8">
-
-      {/* ── Left Branding Panel ─────────────────────────────────────────── */}
-      <div className="md:w-5/12 bg-gradient-to-tr from-purple-700 via-pink-600 to-orange-500 p-10 text-white flex flex-col justify-between relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-black/10 rounded-full blur-3xl pointer-events-none" />
+    <div 
+      ref={containerRef}
+      className="w-full max-w-4xl bg-premium-card border border-premium-border rounded-3xl shadow-premium flex flex-col md:flex-row overflow-hidden transition-all duration-300 my-8"
+    >
+      {/* Left Branding Panel */}
+      <div className="md:w-5/12 bg-premium-gray border-r border-premium-border p-10 text-premium-text flex flex-col justify-between relative overflow-hidden">
+        <div className="absolute -top-32 -left-32 w-64 h-64 bg-accent-blue/5 rounded-full blur-3xl pointer-events-none" />
 
         <div className="z-10">
-          <h1 className="font-serif text-4xl tracking-wide select-none mb-3">Instaclone</h1>
-          <p className="text-white/80 text-sm font-medium leading-relaxed">
-            Join millions of people sharing their moments, hobbies, and stories in real-time.
+          <h1 className="text-2xl font-bold font-display text-premium-text tracking-tight mb-3">Instaclone</h1>
+          <p className="text-premium-muted text-sm leading-relaxed">
+            Welcome to a premium space for sharing moments, stories, and connections in real-time.
           </p>
         </div>
 
         <div className="z-10 my-8 space-y-4">
-          <h3 className="text-xs uppercase font-bold tracking-widest text-white/60">
-            Why Setup Your Profile?
+          <h3 className="text-xs uppercase font-bold tracking-widest text-premium-muted">
+            Why Complete Profile?
           </h3>
           <div className="space-y-3">
             {[
-              "Personalize your feed view",
-              "Help friends find your official handle",
-              "Customize comments & notification cards",
+              "Personalize your feed identity",
+              "Help friends locate your official profile",
+              "Unlocks messages and direct replies",
             ].map((text) => (
               <div key={text} className="flex items-center gap-3">
-                <CheckCircle2 className="w-4 h-4 text-orange-300 shrink-0" />
-                <span className="text-xs font-semibold text-white/90">{text}</span>
+                <CheckCircle2 className="w-4 h-4 text-accent-cyan shrink-0" />
+                <span className="text-xs font-semibold text-premium-text/90">{text}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="z-10 flex items-center gap-2 text-white/70 text-[10px] font-bold uppercase tracking-wider">
-          <ShieldCheck className="w-4 h-4" />
+        <div className="z-10 flex items-center gap-2 text-premium-muted text-[10px] font-bold uppercase tracking-wider">
+          <ShieldCheck className="w-4 h-4 text-accent-emerald" />
           <span>Secure Identity Setup</span>
         </div>
       </div>
 
-      {/* ── Right Form Panel ────────────────────────────────────────────── */}
-      <div className="flex-1 p-8 md:p-12 flex flex-col justify-center items-center bg-white/40">
+      {/* Right Form Panel */}
+      <div className="flex-1 p-8 md:p-12 flex flex-col justify-center items-center bg-premium-card">
         <div className="w-full max-w-md flex flex-col items-center">
           <div className="text-center mb-6">
-            <h2 className="text-2xl font-black text-slate-800 tracking-tight">
+            <h2 className="text-xl font-bold font-display text-premium-text tracking-tight">
               Create Your Profile
             </h2>
-            <p className="text-slate-500 text-xs mt-1">
-              Add your information to configure your profile card.
+            <p className="text-premium-muted text-xs mt-2">
+              Add your display details and avatar to complete onboarding.
             </p>
           </div>
 
-          {/* Global error */}
           {error && (
-            <div className="w-full mb-5 p-3.5 bg-red-50/80 backdrop-blur border border-red-100 text-red-600 rounded-2xl text-xs flex items-center gap-2.5 z-10">
+            <div className="w-full mb-5 p-3.5 bg-accent-coral/10 border border-accent-coral/20 text-accent-coral rounded-2xl text-xs flex items-center gap-2.5 z-10">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="w-full space-y-6">
-
-            {/* ── Avatar Upload ─────────────────────────────────────────── */}
+            {/* Avatar Upload */}
             <div className="flex flex-col items-center space-y-3">
-              {/* Hidden real file input */}
               <input
                 id="avatar-upload"
                 type="file"
@@ -200,13 +185,12 @@ export default function Onboarding({ token, onCompleteOnboarding, onLogout }) {
                 className="hidden"
               />
 
-              {/* Clickable avatar circle */}
               <div
                 className="relative group cursor-pointer"
                 onClick={triggerFileSelect}
-                title="Click to upload a profile picture"
+                title="Upload profile picture"
               >
-                <div className="w-28 h-28 rounded-full bg-slate-50 border border-slate-200/80 overflow-hidden flex items-center justify-center transition-all duration-300 group-hover:scale-[1.02] group-hover:shadow-md ring-4 ring-slate-100/50 group-hover:ring-pink-500/10">
+                <div className="w-24 h-24 rounded-full bg-premium-bg border border-premium-border overflow-hidden flex items-center justify-center transition-all duration-300 group-hover:scale-[1.02] ring-4 ring-premium-border/50 group-hover:ring-accent-blue/10">
                   {avatarPreviewUrl ? (
                     <img
                       src={avatarPreviewUrl}
@@ -214,72 +198,60 @@ export default function Onboarding({ token, onCompleteOnboarding, onLogout }) {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="flex flex-col items-center text-slate-400">
-                      <Camera className="w-8 h-8 stroke-[1.5]" />
-                      <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider">
+                    <div className="flex flex-col items-center text-premium-muted">
+                      <Camera className="w-6 h-6 stroke-[1.5]" />
+                      <span className="text-[9px] mt-1 font-bold uppercase tracking-wider">
                         Add Photo
                       </span>
                     </div>
                   )}
                 </div>
 
-                {/* Edit badge */}
-                <div className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-pink-500 text-white flex items-center justify-center border-2 border-white shadow-md transition-transform duration-300 group-hover:scale-110">
+                <div className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-premium-gray text-premium-text flex items-center justify-center border-2 border-premium-card shadow-md transition-transform duration-200 group-hover:scale-110">
                   <Camera className="w-3.5 h-3.5" />
                 </div>
 
-                {/* Remove badge — only shown when a file is selected */}
                 {avatarFile && (
                   <button
                     type="button"
                     onClick={clearAvatar}
                     title="Remove photo"
-                    className="absolute top-0 right-0 w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center border-2 border-white shadow-md hover:bg-red-600 transition-colors z-10"
+                    className="absolute top-0 right-0 w-6 h-6 rounded-full bg-accent-coral text-white flex items-center justify-center border border-premium-card shadow-md hover:bg-accent-coral/90 transition-colors z-10 cursor-pointer"
                   >
                     <ImageOff className="w-3 h-3" />
                   </button>
                 )}
               </div>
 
-              {/* Action link */}
               <button
                 type="button"
                 onClick={triggerFileSelect}
-                className="text-xs font-bold text-transparent bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text hover:opacity-80 transition"
+                className="text-xs font-bold text-accent-cyan hover:text-accent-cyan/80 transition cursor-pointer"
               >
-                {avatarFile ? "Change Profile Picture" : "Select Profile Picture"}
+                {avatarFile ? "Change photo" : "Select photo"}
               </button>
 
-              {/* File meta info */}
               {avatarFile && !fileError && (
-                <p className="text-[10px] text-slate-400 text-center">
-                  {avatarFile.name} &nbsp;·&nbsp;{(avatarFile.size / 1024).toFixed(0)} KB
+                <p className="text-[10px] text-premium-muted text-center">
+                  {avatarFile.name} ({ (avatarFile.size / 1024).toFixed(0) } KB)
                 </p>
               )}
 
-              {/* File error */}
               {fileError && (
-                <div className="flex items-center gap-1.5 text-[11px] text-red-500 font-semibold text-center">
+                <div className="flex items-center gap-1.5 text-[11px] text-accent-coral font-semibold text-center">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                   {fileError}
                 </div>
               )}
-
-              <p className="text-[10px] text-slate-400 text-center leading-relaxed">
-                JPEG · PNG · WebP &nbsp;·&nbsp; Max {MAX_FILE_SIZE_MB} MB
-              </p>
             </div>
 
-            {/* ── Display Name ──────────────────────────────────────────── */}
+            {/* Display Name */}
             <div className="space-y-1.5">
-              <label
-                htmlFor="display-name"
-                className="text-xs font-bold text-slate-400 uppercase tracking-widest block"
-              >
-                Display Name <span className="text-red-400">*</span>
+              <label htmlFor="display-name" className="text-xs font-semibold text-premium-muted uppercase tracking-wider block">
+                Display Name <span className="text-accent-coral">*</span>
               </label>
               <div className="relative">
-                <User className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
+                <User className="absolute left-3 top-3.5 w-4 h-4 text-premium-muted" />
                 <input
                   id="display-name"
                   type="text"
@@ -287,47 +259,44 @@ export default function Onboarding({ token, onCompleteOnboarding, onLogout }) {
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   maxLength={50}
-                  className="w-full pl-11 pr-4 py-3 border border-slate-200/80 rounded-2xl text-sm bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition duration-200 shadow-inner"
+                  className="w-full pl-10 pr-4 py-3 bg-premium-bg border border-premium-border rounded-2xl text-premium-text placeholder-premium-muted/50 text-sm focus:outline-none focus:border-accent-blue focus:ring-1 focus:ring-accent-blue/30 transition-all duration-200"
                   required
                 />
               </div>
             </div>
 
-            {/* ── Bio ───────────────────────────────────────────────────── */}
+            {/* Bio */}
             <div className="space-y-1.5">
               <div className="flex justify-between items-center">
-                <label
-                  htmlFor="bio"
-                  className="text-xs font-bold text-slate-400 uppercase tracking-widest block"
-                >
+                <label htmlFor="bio" className="text-xs font-semibold text-premium-muted uppercase tracking-wider block">
                   Biography
                 </label>
-                <span className="text-[10px] text-slate-400 font-bold tracking-wider">
+                <span className="text-[10px] text-premium-muted font-bold">
                   {bio.length}/150
                 </span>
               </div>
               <div className="relative">
-                <FileText className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
+                <FileText className="absolute left-3 top-3.5 w-4 h-4 text-premium-muted" />
                 <textarea
                   id="bio"
-                  placeholder="Share a short bio with your followers..."
+                  placeholder="Tell us about yourself..."
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   maxLength={150}
                   rows={3}
-                  className="w-full pl-11 pr-4 py-3 border border-slate-200/80 rounded-2xl text-sm bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition duration-200 resize-none shadow-inner"
+                  className="w-full pl-10 pr-4 py-3 bg-premium-bg border border-premium-border rounded-2xl text-premium-text placeholder-premium-muted/50 text-sm focus:outline-none focus:border-accent-blue focus:ring-1 focus:ring-accent-blue/30 transition-all duration-200 resize-none"
                 />
               </div>
             </div>
 
-            {/* ── Submit ────────────────────────────────────────────────── */}
+            {/* Submit */}
             <button
               type="submit"
               disabled={isLoading || !!fileError}
-              className="w-full py-3 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 text-white rounded-2xl font-bold text-sm hover:opacity-95 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 mt-2"
+              className="w-full py-3.5 rounded-2xl bg-white hover:bg-slate-100 text-premium-bg font-bold text-sm shadow-lg transition-all duration-200 active:scale-[0.98] disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 mt-2"
             >
               {isLoading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-premium-bg/30 border-t-premium-bg rounded-full animate-spin" />
               ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
@@ -337,10 +306,10 @@ export default function Onboarding({ token, onCompleteOnboarding, onLogout }) {
             </button>
           </form>
 
-          {/* Logout link */}
+          {/* Logout */}
           <button
             onClick={onLogout}
-            className="mt-6 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-600 transition flex items-center gap-1.5"
+            className="mt-6 text-xs font-bold uppercase tracking-wider text-premium-muted hover:text-premium-text transition flex items-center gap-1.5 cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
             Sign Out

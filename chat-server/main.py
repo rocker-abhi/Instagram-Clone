@@ -6,6 +6,7 @@ import uvicorn
 
 from app.core.config import settings
 from app.core.database import db
+from app.core.redis import redis_client
 from app.routes.health import router as health_router
 from app.routes.websockets_routes import router as ws_router
 from app.routes.conversation_routes import router as conversation_router
@@ -20,9 +21,20 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting Chat Service...")
+    # Verify Redis Connection
+    try:
+        await redis_client.ping()
+        logger.info("Redis connection verified successfully.")
+    except Exception as e:
+        logger.critical("Redis connection failed: %s", str(e))
+        raise SystemExit("Fatal: Redis is unreachable.") from e
+
     yield
     logger.info("Shutting down Chat Service...")
     await db.close()
+    await redis_client.close()
+    logger.info("Redis connection closed.")
+
 
 
 app = FastAPI(

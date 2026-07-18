@@ -20,6 +20,12 @@ class __Settings(BaseSettings):
     USER_SERVICE_HOST_GRPC: str = "localhost"
     USER_SERVICE_PORT_GRPC: int = 50051
 
+    # Redis Config
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+    REDIS_PASSWORD: str = ""
+
     model_config = SettingsConfigDict(
         env_file=env_path,
         extra="ignore",

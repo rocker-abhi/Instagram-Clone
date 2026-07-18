@@ -20,6 +20,7 @@ class ConversationResponse(BaseModel):
     partner_username: Optional[str] = None
     partner_display_name: Optional[str] = None
     partner_profile_picture: Optional[str] = None
+    is_partner_online: bool = False
 
     class Config:
         from_attributes = True
@@ -32,6 +33,7 @@ class MessageResponse(BaseModel):
     message_type: str
     content: str
     reply_to_message_id: UUID | None = None
+    is_edited: bool = False
     created_at: datetime
     updated_at: datetime
 

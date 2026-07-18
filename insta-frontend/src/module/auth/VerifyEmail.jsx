@@ -1,10 +1,20 @@
-import React, { useEffect, useState } from "react";
-import { CheckCircle2, XCircle, Loader2, Sparkles, ArrowRight } from "lucide-react";
+import React, { useEffect, useState, useRef } from "react";
+import { CheckCircle2, XCircle, Loader2, Sparkles } from "lucide-react";
 import { API_BASE_URL } from "../../config";
+import { gsap } from "gsap";
 
 export default function VerifyEmail({ onGoToLogin }) {
   const [status, setStatus] = useState("verifying"); // "verifying", "success", "error"
   const [message, setMessage] = useState("");
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    gsap.fromTo(
+      containerRef.current,
+      { opacity: 0, y: 30, filter: "blur(8px)" },
+      { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.8, ease: "power4.out" }
+    );
+  }, []);
 
   useEffect(() => {
     const verify = async () => {
@@ -51,50 +61,51 @@ export default function VerifyEmail({ onGoToLogin }) {
   }, []);
 
   return (
-    <div className="relative w-full max-w-md p-6 sm:p-8 rounded-2xl sm:rounded-3xl bg-white/80 backdrop-blur-xl border border-slate-200 shadow-2xl overflow-hidden transition-all duration-500 hover:border-blue-500/30">
-      {/* Glows */}
-      <div className="absolute -top-24 -left-24 w-48 h-48 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
+    <div 
+      ref={containerRef}
+      className="relative w-full max-w-[420px] p-8 rounded-3xl bg-premium-card border border-premium-border shadow-premium overflow-hidden transition-all duration-300"
+    >
+      <div className="absolute -top-32 -left-32 w-64 h-64 bg-accent-blue/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="text-center relative z-10 py-4">
         {status === "verifying" && (
           <div className="flex flex-col items-center justify-center space-y-4">
-            <Loader2 className="w-16 h-16 text-blue-500 animate-spin" />
-            <h2 className="text-2xl font-extrabold text-slate-800">Verifying Your Email</h2>
-            <p className="text-sm text-slate-500">Checking verification code with the server...</p>
+            <Loader2 className="w-12 h-12 text-accent-cyan animate-spin" />
+            <h2 className="text-xl font-bold font-display text-premium-text">Verifying Your Email</h2>
+            <p className="text-sm text-premium-muted">Checking verification code with the server...</p>
           </div>
         )}
 
         {status === "success" && (
           <div className="flex flex-col items-center justify-center space-y-6">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-50 border border-green-200 p-2 shadow-lg shadow-green-500/10 animate-bounce">
-              <CheckCircle2 className="w-12 h-12 text-green-500" />
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-accent-emerald/10 border border-accent-emerald/20 p-2 shadow-inner">
+              <CheckCircle2 className="w-8 h-8 text-accent-emerald animate-pulse" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-2xl font-extrabold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+              <h2 className="text-xl font-bold font-display text-accent-emerald">
                 Email Verified!
               </h2>
-              <p className="text-sm text-slate-500 px-4">{message}</p>
+              <p className="text-sm text-premium-muted px-4 leading-relaxed">{message}</p>
             </div>
-            <p className="text-xs text-slate-400 animate-pulse">
-              Redirecting you to login page in 3 seconds...
+            <p className="text-xs text-premium-muted/50">
+              Redirecting you to dashboard in 3 seconds...
             </p>
           </div>
         )}
 
         {status === "error" && (
           <div className="flex flex-col items-center justify-center space-y-6">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-50 border border-red-200 p-2 shadow-lg shadow-red-500/10 animate-pulse">
-              <XCircle className="w-12 h-12 text-red-500" />
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-accent-coral/10 border border-accent-coral/20 p-2 shadow-inner">
+              <XCircle className="w-8 h-8 text-accent-coral" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-2xl font-extrabold text-red-600">
+              <h2 className="text-xl font-bold font-display text-accent-coral">
                 Verification Failed
               </h2>
-              <p className="text-sm text-slate-500 px-4">{message}</p>
+              <p className="text-sm text-premium-muted px-4 leading-relaxed">{message}</p>
             </div>
-            <p className="text-xs text-slate-400 animate-pulse">
-              Redirecting you to login page in 4 seconds...
+            <p className="text-xs text-premium-muted/50">
+              Redirecting in 4 seconds...
             </p>
           </div>
         )}

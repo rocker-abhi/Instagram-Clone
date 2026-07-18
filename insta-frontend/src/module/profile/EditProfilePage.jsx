@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ArrowLeft, Upload, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { USER_API_BASE_URL } from "../../config";
+import { gsap } from "gsap";
 
 export default function EditProfilePage({ profile, token, onBack, onUpdateSuccess }) {
   const [username, setUsername] = useState(profile.username || "");
@@ -11,7 +12,6 @@ export default function EditProfilePage({ profile, token, onBack, onUpdateSucces
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState({ type: null, message: "" }); // 'success' | 'error'
 
-  // Input validation states
   const [usernameStatus, setUsernameStatus] = useState({
     state: "idle", // 'idle' | 'checking' | 'available' | 'taken' | 'invalid'
     message: ""
@@ -19,8 +19,17 @@ export default function EditProfilePage({ profile, token, onBack, onUpdateSucces
 
   const [displayNameError, setDisplayNameError] = useState("");
   const [bioError, setBioError] = useState("");
+  
+  const containerRef = useRef(null);
 
-  // Real-time Display Name validation
+  useEffect(() => {
+    gsap.fromTo(
+      containerRef.current,
+      { opacity: 0, scale: 0.98 },
+      { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" }
+    );
+  }, []);
+
   useEffect(() => {
     if (!displayName.trim()) {
       setDisplayNameError("Full name is required.");
@@ -42,7 +51,6 @@ export default function EditProfilePage({ profile, token, onBack, onUpdateSucces
     setDisplayNameError("");
   }, [displayName]);
 
-  // Real-time Bio validation
   useEffect(() => {
     if (bio.length > 150) {
       setBioError("Bio cannot exceed 150 characters.");
@@ -51,7 +59,6 @@ export default function EditProfilePage({ profile, token, onBack, onUpdateSucces
     }
   }, [bio]);
 
-  // Real-time Username validation with API check
   useEffect(() => {
     if (!username.trim()) {
       setUsernameStatus({ state: "invalid", message: "Username cannot be empty." });
@@ -148,7 +155,6 @@ export default function EditProfilePage({ profile, token, onBack, onUpdateSucces
     setStatus({ type: null, message: "" });
 
     try {
-      // 1. Update text profile info (username, display_name, bio)
       const putRes = await fetch(`${USER_API_BASE_URL}/user-profile`, {
         method: "PUT",
         headers: {
@@ -170,7 +176,6 @@ export default function EditProfilePage({ profile, token, onBack, onUpdateSucces
 
       let updatedData = (await putRes.json()).data;
 
-      // 2. Upload avatar if changed
       if (avatarFile) {
         const formData = new FormData();
         formData.append("display_name", displayName);
@@ -214,46 +219,46 @@ export default function EditProfilePage({ profile, token, onBack, onUpdateSucces
     !!bioError;
 
   return (
-    <div className="w-full max-w-[600px] mx-auto px-4 py-8 bg-white rounded-3xl border border-[#efefef] shadow-[0_10px_30px_rgba(0,0,0,0.02)] mt-4">
+    <div ref={containerRef} className="w-full max-w-[600px] mx-auto px-6 py-8 bg-premium-card border border-premium-border rounded-3xl shadow-premium mt-4">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8 pb-4 border-b border-[#efefef]">
+      <div className="flex items-center gap-4 mb-8 pb-4 border-b border-premium-border/50">
         <button 
           onClick={onBack}
-          className="p-2 hover:bg-slate-50 rounded-full transition-colors text-slate-600 hover:text-slate-900"
+          className="p-2 hover:bg-premium-gray rounded-full transition-colors text-premium-text cursor-pointer"
         >
-          <ArrowLeft className="w-6 h-6" />
+          <ArrowLeft className="w-5 h-5" />
         </button>
-        <h2 className="text-xl font-bold text-[#262626]">Edit profile</h2>
+        <h2 className="text-lg font-bold font-display text-premium-text">Edit profile</h2>
       </div>
 
       {status.message && (
-        <div className={`flex items-center gap-3 p-4 mb-6 rounded-2xl border text-sm font-semibold transition-all
+        <div className={`flex items-center gap-3 p-4 mb-6 rounded-2xl border text-xs font-semibold transition-all
           ${status.type === "success" 
-            ? "bg-green-50 border-green-200 text-green-700" 
-            : "bg-red-50 border-red-200 text-red-700"}`}
+            ? "bg-accent-emerald/10 border-accent-emerald/20 text-accent-emerald" 
+            : "bg-accent-coral/10 border-accent-coral/20 text-accent-coral"}`}
         >
-          {status.type === "success" ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}
+          {status.type === "success" ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
           <span>{status.message}</span>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Avatar Upload Selection */}
-        <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-[#efefef]">
-          <div className="w-[80px] h-[80px] rounded-full overflow-hidden border border-[#dbdbdb] shrink-0 bg-gradient-to-tr from-purple-100 to-pink-100 flex items-center justify-center">
+        {/* Avatar Upload */}
+        <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-premium-border/40">
+          <div className="w-[72px] h-[72px] rounded-full overflow-hidden border border-premium-border shrink-0 bg-premium-gray flex items-center justify-center">
             {avatarPreview ? (
-              <img src={avatarPreview} alt="Preview" className="w-full h-full object-cover" />
+              <img src={avatarPreview} alt="Preview" className="w-full h-full object-cover rounded-full" />
             ) : (
-              <span className="text-xl font-bold text-pink-500">
+              <span className="text-xl font-bold text-premium-text">
                 {profile.username?.[0]?.toUpperCase() || "U"}
               </span>
             )}
           </div>
           <div className="flex flex-col items-center sm:items-start gap-2">
-            <span className="font-bold text-sm text-[#262626]">{username}</span>
-            <label className="cursor-pointer inline-flex items-center gap-2 bg-[#0095f6] hover:bg-[#00376b] text-white font-bold text-xs px-4 py-2 rounded-xl shadow-[0_2px_8px_rgba(0,149,246,0.15)] transition-all">
-              <Upload className="w-4 h-4" />
-              Change photo
+            <span className="font-bold text-xs text-premium-text">{username}</span>
+            <label className="cursor-pointer inline-flex items-center gap-1.5 bg-white text-premium-bg hover:bg-slate-100 font-bold text-[10px] px-4 py-2 rounded-2xl shadow transition-all">
+              <Upload className="w-3.5 h-3.5" />
+              Change Photo
               <input 
                 type="file" 
                 accept="image/*" 
@@ -264,24 +269,24 @@ export default function EditProfilePage({ profile, token, onBack, onUpdateSucces
           </div>
         </div>
 
-        {/* Username field */}
-        <div className="space-y-2">
-          <label className="block text-sm font-bold text-[#262626]">Username</label>
+        {/* Username */}
+        <div className="space-y-1.5">
+          <label className="block text-xs font-semibold text-premium-muted uppercase tracking-wider">Username</label>
           <input
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value.trim().toLowerCase())}
             placeholder="Username"
             maxLength={30}
-            className={`w-full px-4 py-3 rounded-xl border focus:outline-none text-sm transition-all
-              ${usernameStatus.state === "available" ? "border-green-300 focus:border-green-500" : ""}
-              ${usernameStatus.state === "taken" || usernameStatus.state === "invalid" ? "border-red-300 focus:border-red-500" : "border-slate-200 focus:border-purple-500"}`}
+            className={`w-full px-4 py-3 bg-premium-bg rounded-2xl border text-xs focus:outline-none focus:ring-1 transition-all
+              ${usernameStatus.state === "available" ? "border-accent-emerald focus:border-accent-emerald focus:ring-accent-emerald/30" : ""}
+              ${usernameStatus.state === "taken" || usernameStatus.state === "invalid" ? "border-accent-coral focus:border-accent-coral focus:ring-accent-coral/30" : "border-premium-border focus:border-accent-blue focus:ring-accent-blue/30"}`}
           />
           {usernameStatus.message && (
-            <p className={`text-xs font-semibold
-              ${usernameStatus.state === "checking" ? "text-slate-400" : ""}
-              ${usernameStatus.state === "available" ? "text-green-600" : ""}
-              ${usernameStatus.state === "taken" || usernameStatus.state === "invalid" ? "text-red-500" : ""}`}
+            <p className={`text-[10px] font-bold mt-1
+              ${usernameStatus.state === "checking" ? "text-premium-muted" : ""}
+              ${usernameStatus.state === "available" ? "text-accent-emerald" : ""}
+              ${usernameStatus.state === "taken" || usernameStatus.state === "invalid" ? "text-accent-coral" : ""}`}
             >
               {usernameStatus.message}
             </p>
@@ -289,45 +294,45 @@ export default function EditProfilePage({ profile, token, onBack, onUpdateSucces
         </div>
 
         {/* Display Name */}
-        <div className="space-y-2">
-          <label className="block text-sm font-bold text-[#262626]">Full Name</label>
+        <div className="space-y-1.5">
+          <label className="block text-xs font-semibold text-premium-muted uppercase tracking-wider">Full Name</label>
           <input
             type="text"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder="Full name"
             maxLength={20}
-            className={`w-full px-4 py-3 rounded-xl border focus:outline-none text-sm transition-all
-              ${displayNameError ? "border-red-300 focus:border-red-500" : "border-slate-200 focus:border-purple-500"}`}
+            className={`w-full px-4 py-3 bg-premium-bg rounded-2xl border text-xs focus:outline-none focus:ring-1 transition-all
+              ${displayNameError ? "border-accent-coral focus:border-accent-coral focus:ring-accent-coral/30" : "border-premium-border focus:border-accent-blue focus:ring-accent-blue/30"}`}
           />
           {displayNameError ? (
-            <p className="text-xs font-semibold text-red-500">{displayNameError}</p>
+            <p className="text-[10px] font-bold text-accent-coral mt-1">{displayNameError}</p>
           ) : (
-            <p className="text-[11px] text-slate-400">
-              Help people discover your account by using the name you're known by: either your full name, nickname, or business name.
+            <p className="text-[10px] text-premium-muted">
+              Help people discover your profile by using the name you are known by.
             </p>
           )}
         </div>
 
         {/* Bio */}
-        <div className="space-y-2">
-          <label className="block text-sm font-bold text-[#262626]">Bio</label>
+        <div className="space-y-1.5">
+          <label className="block text-xs font-semibold text-premium-muted uppercase tracking-wider">Bio</label>
           <textarea
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             placeholder="Write something about yourself..."
             maxLength={150}
             rows={4}
-            className={`w-full px-4 py-3 rounded-xl border focus:outline-none text-sm transition-all resize-none
-              ${bioError ? "border-red-300 focus:border-red-500" : "border-slate-200 focus:border-purple-500"}`}
+            className={`w-full px-4 py-3 bg-premium-bg rounded-2xl border text-xs focus:outline-none focus:ring-1 transition-all resize-none
+              ${bioError ? "border-accent-coral focus:border-accent-coral focus:ring-accent-coral/30" : "border-premium-border focus:border-accent-blue focus:ring-accent-blue/30"}`}
           />
-          <div className="flex justify-between items-center text-xs">
+          <div className="flex justify-between items-center text-[10px] font-semibold">
             {bioError ? (
-              <span className="font-semibold text-red-500">{bioError}</span>
+              <span className="text-accent-coral">{bioError}</span>
             ) : (
               <span />
             )}
-            <span className="text-slate-400">
+            <span className="text-premium-muted">
               {bio.length} / 150
             </span>
           </div>
@@ -338,10 +343,10 @@ export default function EditProfilePage({ profile, token, onBack, onUpdateSucces
           <button
             type="submit"
             disabled={loading || isFormInvalid}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#0095f6] hover:bg-[#00376b] disabled:opacity-50 text-white font-bold text-sm px-8 py-3 rounded-xl transition-all active:scale-95 shadow-[0_4px_12px_rgba(0,149,246,0.2)]"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white text-premium-bg disabled:opacity-50 font-bold text-xs px-8 py-3.5 rounded-2xl transition-all active:scale-95 shadow cursor-pointer hover:bg-slate-100"
           >
-            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            Submit
+            {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            Submit Details
           </button>
         </div>
       </form>

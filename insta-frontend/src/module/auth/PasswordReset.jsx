@@ -3,6 +3,7 @@ import { Compass, Sparkles, User, ArrowLeft, Mail, Key, ShieldCheck, Eye, EyeOff
 import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 import { auth } from "../../firebase";
 import { API_BASE_URL } from "../../config";
+import { gsap } from "gsap";
 
 export default function PasswordReset({ onSwitchToLogin, isResetFlow = false, userId = null, code = null }) {
   const [step, setStep] = useState(1); // 1: Request code, 2: Verify code, 3: Reset password, 4: Email sent success redirect
@@ -25,6 +26,15 @@ export default function PasswordReset({ onSwitchToLogin, isResetFlow = false, us
   const [verificationCountdown, setVerificationCountdown] = useState(10);
 
   const recaptchaVerifierRef = useRef(null);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    gsap.fromTo(
+      containerRef.current,
+      { opacity: 0, y: 30, filter: "blur(8px)" },
+      { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.8, ease: "power4.out" }
+    );
+  }, [step, isVerificationLinkSent, isEmailUnverified, isResetSuccess]);
 
   // Recaptcha cleanup on unmount
   useEffect(() => {
@@ -403,181 +413,154 @@ export default function PasswordReset({ onSwitchToLogin, isResetFlow = false, us
   };
 
   return (
-    <div className="relative w-full max-w-md p-6 sm:p-8 rounded-2xl sm:rounded-3xl bg-white/80 backdrop-blur-xl border border-slate-200 shadow-2xl overflow-hidden transition-all duration-500 hover:border-purple-500/30">
+    <div 
+      ref={containerRef}
+      className="relative w-full max-w-[420px] p-8 rounded-3xl bg-premium-card border border-premium-border shadow-premium overflow-hidden transition-all duration-300"
+    >
       {/* Container for invisible Recaptcha */}
       <div id="recaptcha-container"></div>
 
-      {/* Decorative Glows */}
-      <div className="absolute -top-24 -left-24 w-48 h-48 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-pink-600/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Decorative Glow */}
+      <div className="absolute -top-32 -left-32 w-64 h-64 bg-accent-blue/10 rounded-full blur-3xl pointer-events-none" />
 
       {isVerificationLinkSent ? (
-        <>
-          {/* Verification Link Sent Success Screen */}
-          <div className="text-center mb-6 sm:mb-8 relative z-10 py-6">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-tr from-green-600 via-emerald-600 to-teal-500 p-0.5 shadow-lg shadow-green-500/10 mb-6 animate-bounce">
-              <div className="w-full h-full bg-white rounded-full flex items-center justify-center">
-                <ShieldCheck className="w-8 h-8 text-green-500" />
-              </div>
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-slate-900 via-slate-800 to-slate-600 bg-clip-text text-transparent tracking-tight">
-              Verification Link Sent!
-            </h2>
-            <p className="text-sm text-slate-600 mt-4 px-4 leading-relaxed">
-              A verification link has been successfully sent to your email. Please check your email to verify your account.
-            </p>
-            <div className="mt-8 flex flex-col items-center justify-center space-y-6">
-              <div className="w-12 h-12 rounded-full border-4 border-slate-100 border-t-green-500 animate-spin" />
-              <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
-                Redirecting to login in <span className="text-green-500 text-sm font-bold">{verificationCountdown}</span> seconds...
-              </p>
-              <button
-                onClick={() => window.location.replace("/")}
-                className="relative w-full py-3.5 px-6 rounded-2xl font-bold text-white overflow-hidden shadow-lg transition-all duration-300 transform active:scale-[0.98]"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-green-600 via-emerald-600 to-teal-500 transition-transform duration-500 hover:scale-105" />
-                <span className="relative z-10 flex items-center justify-center gap-2">
-                  Go to Login Screen
-                </span>
-              </button>
-            </div>
+        <div className="text-center relative z-10 py-6">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-accent-emerald/10 border border-accent-emerald/20 p-2 shadow-inner mb-6 animate-pulse">
+            <ShieldCheck className="w-8 h-8 text-accent-emerald" />
           </div>
-        </>
+          <h2 className="text-xl font-bold font-display text-premium-text tracking-tight">
+            Verification Link Sent!
+          </h2>
+          <p className="text-sm text-premium-muted mt-4 px-4 leading-relaxed">
+            A verification link has been successfully sent to your email. Check your inbox to activate your account.
+          </p>
+          <div className="mt-8 flex flex-col items-center justify-center space-y-6">
+            <div className="w-10 h-10 rounded-full border-2 border-premium-border border-t-accent-emerald animate-spin" />
+            <p className="text-xs text-premium-muted">
+              Redirecting in <span className="text-accent-emerald font-bold">{verificationCountdown}</span> seconds...
+            </p>
+            <button
+              onClick={() => window.location.replace("/")}
+              className="w-full py-3 bg-white text-premium-bg font-bold rounded-2xl shadow-lg transition-transform duration-200 cursor-pointer"
+            >
+              Back to Login
+            </button>
+          </div>
+        </div>
       ) : isEmailUnverified ? (
-        <>
-          {/* Unverified Email Warning Screen */}
-          <div className="text-center mb-6 sm:mb-8 relative z-10 py-6">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-tr from-amber-500 via-orange-500 to-red-500 p-0.5 shadow-lg shadow-orange-500/10 mb-6 animate-bounce">
-              <div className="w-full h-full bg-white rounded-full flex items-center justify-center">
-                <Mail className="w-8 h-8 text-orange-500" />
-              </div>
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-slate-900 via-slate-800 to-slate-600 bg-clip-text text-transparent tracking-tight">
-              Email Not Verified
-            </h2>
-            <p className="text-sm text-slate-600 mt-4 px-4 leading-relaxed">
-              The email address associated with your account has not been verified yet. Please verify your email before attempting to reset your password.
-            </p>
-            {error && (
-              <div className="p-3 my-4 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs text-center animate-shake">
-                {error}
-              </div>
-            )}
-            <div className="mt-8 flex flex-col items-center justify-center space-y-4">
-              <button
-                onClick={handleResendVerification}
-                disabled={isLoading}
-                className="relative w-full py-3.5 px-6 rounded-2xl font-bold text-white overflow-hidden shadow-lg transition-all duration-300 transform active:scale-[0.98] disabled:opacity-50"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 transition-transform duration-500 hover:scale-105" />
-                <span className="relative z-10 flex items-center justify-center gap-2">
-                  {isLoading ? (
-                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    "Send Verification Link"
-                  )}
-                </span>
-              </button>
-              <button
-                onClick={() => window.location.replace("/")}
-                className="font-bold text-slate-600 hover:text-pink-500 transition-colors text-sm"
-              >
-                Back to Login
-              </button>
-            </div>
+        <div className="text-center relative z-10 py-6">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-accent-orange/10 border border-accent-orange/20 p-2 shadow-inner mb-6">
+            <Mail className="w-8 h-8 text-accent-orange" />
           </div>
-        </>
+          <h2 className="text-xl font-bold font-display text-premium-text tracking-tight">
+            Email Not Verified
+          </h2>
+          <p className="text-sm text-premium-muted mt-4 px-4 leading-relaxed">
+            The email address associated with your account has not been verified yet. Please verify your email before attempting to reset your password.
+          </p>
+          {error && (
+            <div className="p-3.5 my-4 rounded-2xl bg-accent-coral/10 border border-accent-coral/20 text-accent-coral text-xs text-center font-medium animate-shake">
+              {error}
+            </div>
+          )}
+          <div className="mt-8 flex flex-col items-center justify-center space-y-4 w-full">
+            <button
+              onClick={handleResendVerification}
+              disabled={isLoading}
+              className="w-full py-3 bg-white text-premium-bg font-bold rounded-2xl shadow-lg transition-transform duration-200 cursor-pointer"
+            >
+              <span className="flex items-center justify-center gap-2">
+                {isLoading ? (
+                  <span className="w-4 h-4 border-2 border-premium-bg/30 border-t-premium-bg rounded-full animate-spin" />
+                ) : (
+                  "Send Verification Link"
+                )}
+              </span>
+            </button>
+            <button
+              onClick={() => window.location.replace("/")}
+              className="font-bold text-premium-muted hover:text-premium-text transition-colors text-sm cursor-pointer"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       ) : isResetSuccess ? (
-        <>
-          {/* Success Redirect Screen */}
-          <div className="text-center mb-6 sm:mb-8 relative z-10 py-6">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-tr from-green-600 via-emerald-600 to-teal-500 p-0.5 shadow-lg shadow-green-500/10 mb-6 animate-bounce">
-              <div className="w-full h-full bg-white rounded-full flex items-center justify-center">
-                <ShieldCheck className="w-8 h-8 text-green-500" />
-              </div>
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-slate-900 via-slate-800 to-slate-600 bg-clip-text text-transparent tracking-tight">
-              Password Reset Successful!
-            </h2>
-            <p className="text-sm text-slate-600 mt-4 px-4 leading-relaxed">
-              Your password has been successfully reset.
-            </p>
-            <div className="mt-8 flex flex-col items-center justify-center space-y-6">
-              <div className="w-12 h-12 rounded-full border-4 border-slate-100 border-t-green-500 animate-spin" />
-              <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
-                Redirecting to login in <span className="text-green-500 text-sm font-bold">{successCountdown}</span> seconds...
-              </p>
-              <button
-                onClick={() => window.location.replace("/")}
-                className="relative w-full py-3.5 px-6 rounded-2xl font-bold text-white overflow-hidden shadow-lg transition-all duration-300 transform active:scale-[0.98]"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-green-600 via-emerald-600 to-teal-500 transition-transform duration-500 hover:scale-105" />
-                <span className="relative z-10 flex items-center justify-center gap-2">
-                  Go to Login Screen
-                </span>
-              </button>
-            </div>
+        <div className="text-center relative z-10 py-6">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-accent-emerald/10 border border-accent-emerald/20 p-2 shadow-inner mb-6 animate-pulse">
+            <ShieldCheck className="w-8 h-8 text-accent-emerald" />
           </div>
-        </>
+          <h2 className="text-xl font-bold font-display text-premium-text tracking-tight">
+            Reset Successful!
+          </h2>
+          <p className="text-sm text-premium-muted mt-4 px-4 leading-relaxed">
+            Your password has been successfully reset.
+          </p>
+          <div className="mt-8 flex flex-col items-center justify-center space-y-6">
+            <div className="w-10 h-10 rounded-full border-2 border-premium-border border-t-accent-emerald animate-spin" />
+            <p className="text-xs text-premium-muted">
+              Redirecting in <span className="text-accent-emerald font-bold">{successCountdown}</span> seconds...
+            </p>
+            <button
+              onClick={() => window.location.replace("/")}
+              className="w-full py-3 bg-white text-premium-bg font-bold rounded-2xl shadow-lg transition-transform duration-200 cursor-pointer"
+            >
+              Back to Login
+            </button>
+          </div>
+        </div>
       ) : (
         <>
           {step === 1 && (
             <>
-              {/* Header */}
-              <div className="text-center mb-6 sm:mb-8 relative z-10">
-                <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-purple-600 via-pink-600 to-orange-500 p-0.5 shadow-lg shadow-purple-500/10 mb-4">
-                  <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center">
-                    <Mail className="w-7 h-7 sm:w-8 sm:h-8 text-pink-500" />
-                  </div>
+              <div className="text-center mb-8 relative z-10">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-premium-gray border border-premium-border p-0.5 mb-4 shadow-inner">
+                  <Mail className="w-6 h-6 text-accent-cyan" />
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-slate-900 via-slate-800 to-slate-600 bg-clip-text text-transparent tracking-tight">
+                <h2 className="text-xl font-bold font-display text-premium-text tracking-tight">
                   Trouble Logging In?
                 </h2>
-                <p className="text-sm text-slate-500 mt-2 px-2">
-                  Enter your email, username, or phone number and we'll send you a code to get back into your account.
+                <p className="text-sm text-premium-muted mt-2 px-2">
+                  Enter your email, username, or phone and we'll send you a link to get back into your account.
                 </p>
               </div>
 
-              {/* Form */}
               <form onSubmit={handleSubmitIdentifier} className="space-y-6 relative z-10">
                 {error && (
-                  <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs text-center animate-shake">
+                  <div className="p-3.5 rounded-2xl bg-accent-coral/10 border border-accent-coral/20 text-accent-coral text-xs text-center font-medium animate-shake">
                     {error}
                   </div>
                 )}
 
-                {/* Identifier Field */}
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider block">
-                    Username, Email, or Phone Number
+                  <label className="text-xs font-semibold text-premium-muted uppercase tracking-wider block">
+                    Username, Email, or Phone
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                      <User className="w-5 h-5" />
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-premium-muted">
+                      <User className="w-4 h-4" />
                     </div>
                     <input
                       type="text"
                       value={identifier}
                       onChange={(e) => setIdentifier(e.target.value)}
-                      placeholder="Username, email, phone number"
-                      className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-600/10 transition-all duration-300"
+                      placeholder="Enter identifier"
+                      className="w-full pl-10 pr-4 py-3 bg-premium-bg border border-premium-border rounded-2xl text-premium-text placeholder-premium-muted/50 text-sm focus:outline-none focus:border-accent-blue focus:ring-1 focus:ring-accent-blue/30 transition-all duration-200"
                     />
                   </div>
                 </div>
 
-                {/* Submit button */}
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="relative w-full py-4 rounded-2xl font-bold text-white overflow-hidden shadow-lg transition-all duration-300 transform active:scale-[0.98] disabled:opacity-50 mt-2"
+                  className="w-full py-3.5 rounded-2xl bg-white hover:bg-slate-100 text-premium-bg font-bold text-sm shadow-lg transition-all duration-200 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 transition-transform duration-500 hover:scale-105" />
-                  <span className="relative z-10 flex items-center justify-center gap-2">
+                  <span className="flex items-center justify-center gap-2">
                     {isLoading ? (
-                      <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span className="w-4 h-4 border-2 border-premium-bg/30 border-t-premium-bg rounded-full animate-spin" />
                     ) : (
                       <>
-                        <Sparkles className="w-4 h-4" />
+                        <Sparkles className="w-3.5 h-3.5" />
                         Send Login Link
                       </>
                     )}
@@ -589,62 +572,55 @@ export default function PasswordReset({ onSwitchToLogin, isResetFlow = false, us
 
           {step === 2 && (
             <>
-              {/* Header */}
-              <div className="text-center mb-6 sm:mb-8 relative z-10">
-                <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-green-600 via-emerald-600 to-teal-500 p-0.5 shadow-lg shadow-green-500/10 mb-4 animate-bounce">
-                  <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center">
-                    <ShieldCheck className="w-7 h-7 sm:w-8 sm:h-8 text-green-500" />
-                  </div>
+              <div className="text-center mb-8 relative z-10">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-premium-gray border border-premium-border p-0.5 mb-4 shadow-inner">
+                  <ShieldCheck className="w-6 h-6 text-accent-emerald" />
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-slate-900 via-slate-800 to-slate-600 bg-clip-text text-transparent tracking-tight">
+                <h2 className="text-xl font-bold font-display text-premium-text tracking-tight">
                   Enter Verification Code
                 </h2>
-                <p className="text-sm text-slate-500 mt-2 px-2">
-                  We have sent a verification code to <span className="font-semibold text-slate-800">{verifiedPhone}</span>
+                <p className="text-sm text-premium-muted mt-2">
+                  We have sent a verification code to <span className="font-semibold text-premium-text">{verifiedPhone}</span>
                 </p>
               </div>
 
-              {/* Form */}
               <form onSubmit={handleSubmitVerification} className="space-y-6 relative z-10">
                 {error && (
-                  <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs text-center animate-shake">
+                  <div className="p-3.5 rounded-2xl bg-accent-coral/10 border border-accent-coral/20 text-accent-coral text-xs text-center font-medium animate-shake">
                     {error}
                   </div>
                 )}
 
-                {/* OTP Code Field */}
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider block">
+                  <label className="text-xs font-semibold text-premium-muted uppercase tracking-wider block">
                     6-Digit Code
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                      <Key className="w-5 h-5" />
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-premium-muted">
+                      <Key className="w-4 h-4" />
                     </div>
                     <input
                       type="password"
                       maxLength={6}
                       value={otp}
                       onChange={(e) => setOtp(e.target.value)}
-                      placeholder="Enter 6-digit OTP code"
-                      className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-green-600 focus:ring-2 focus:ring-green-600/10 transition-all duration-300 tracking-[0.25em] text-center font-bold"
+                      placeholder="Enter OTP code"
+                      className="w-full pl-10 pr-4 py-3 bg-premium-bg border border-premium-border rounded-2xl text-premium-text placeholder-premium-muted/50 text-sm focus:outline-none focus:border-accent-blue focus:ring-1 focus:ring-accent-blue/30 transition-all duration-200 tracking-[0.25em] text-center font-bold text-lg"
                     />
                   </div>
                 </div>
 
-                {/* Verify Button */}
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="relative w-full py-4 rounded-2xl font-bold text-white overflow-hidden shadow-lg transition-all duration-300 transform active:scale-[0.98] disabled:opacity-50 mt-2"
+                  className="w-full py-3.5 rounded-2xl bg-white hover:bg-slate-100 text-premium-bg font-bold text-sm shadow-lg transition-all duration-200 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-green-600 via-emerald-600 to-teal-500 transition-transform duration-500 hover:scale-105" />
-                  <span className="relative z-10 flex items-center justify-center gap-2">
+                  <span className="flex items-center justify-center gap-2">
                     {isLoading ? (
-                      <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span className="w-4 h-4 border-2 border-premium-bg/30 border-t-premium-bg rounded-full animate-spin" />
                     ) : (
                       <>
-                        <Sparkles className="w-4 h-4" />
+                        <Sparkles className="w-3.5 h-3.5" />
                         Verify Code
                       </>
                     )}
@@ -656,87 +632,79 @@ export default function PasswordReset({ onSwitchToLogin, isResetFlow = false, us
 
           {step === 3 && (
             <>
-              {/* Header */}
-              <div className="text-center mb-6 sm:mb-8 relative z-10">
-                <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-purple-600 via-pink-600 to-orange-500 p-0.5 shadow-lg shadow-purple-500/10 mb-4 animate-pulse">
-                  <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center">
-                    <Lock className="w-7 h-7 sm:w-8 sm:h-8 text-pink-500" />
-                  </div>
+              <div className="text-center mb-8 relative z-10">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-premium-gray border border-premium-border p-0.5 mb-4 shadow-inner">
+                  <Lock className="w-6 h-6 text-accent-coral" />
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-slate-900 via-slate-800 to-slate-600 bg-clip-text text-transparent tracking-tight">
+                <h2 className="text-xl font-bold font-display text-premium-text tracking-tight">
                   Create New Password
                 </h2>
-                <p className="text-sm text-slate-500 mt-2 px-2">
-                  Choose a strong password for your verified account.
+                <p className="text-sm text-premium-muted mt-2">
+                  Choose a secure password for your verified account.
                 </p>
               </div>
 
-              {/* Form */}
               <form onSubmit={handleSubmitNewPassword} className="space-y-6 relative z-10">
                 {error && (
-                  <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs text-center animate-shake">
+                  <div className="p-3.5 rounded-2xl bg-accent-coral/10 border border-accent-coral/20 text-accent-coral text-xs text-center font-medium animate-shake">
                     {error}
                   </div>
                 )}
 
-                {/* Password Field */}
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider block">
+                  <label className="text-xs font-semibold text-premium-muted uppercase tracking-wider block">
                     New Password
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                      <Lock className="w-5 h-5" />
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-premium-muted">
+                      <Lock className="w-4 h-4" />
                     </div>
                     <input
                       type={showPassword ? "text" : "password"}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="Enter new password"
-                      className="w-full pl-11 pr-11 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-600/10 transition-all duration-300"
+                      className="w-full pl-10 pr-10 py-3 bg-premium-bg border border-premium-border rounded-2xl text-premium-text placeholder-premium-muted/50 text-sm focus:outline-none focus:border-accent-blue focus:ring-1 focus:ring-accent-blue/30 transition-all duration-200"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-700 transition-colors"
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-premium-muted hover:text-premium-text transition-colors"
                     >
-                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
 
-                {/* Confirm Password Field */}
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider block">
+                  <label className="text-xs font-semibold text-premium-muted uppercase tracking-wider block">
                     Confirm Password
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                      <Lock className="w-5 h-5" />
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-premium-muted">
+                      <Lock className="w-4 h-4" />
                     </div>
                     <input
                       type={showPassword ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Confirm new password"
-                      className="w-full pl-11 pr-11 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-600/10 transition-all duration-300"
+                      placeholder="Confirm password"
+                      className="w-full pl-10 pr-4 py-3 bg-premium-bg border border-premium-border rounded-2xl text-premium-text placeholder-premium-muted/50 text-sm focus:outline-none focus:border-accent-blue focus:ring-1 focus:ring-accent-blue/30 transition-all duration-200"
                     />
                   </div>
                 </div>
 
-                {/* Reset Button */}
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="relative w-full py-4 rounded-2xl font-bold text-white overflow-hidden shadow-lg transition-all duration-300 transform active:scale-[0.98] disabled:opacity-50 mt-2"
+                  className="w-full py-3.5 rounded-2xl bg-white hover:bg-slate-100 text-premium-bg font-bold text-sm shadow-lg transition-all duration-200 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 transition-transform duration-500 hover:scale-105" />
-                  <span className="relative z-10 flex items-center justify-center gap-2">
+                  <span className="flex items-center justify-center gap-2">
                     {isLoading ? (
-                      <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span className="w-4 h-4 border-2 border-premium-bg/30 border-t-premium-bg rounded-full animate-spin" />
                     ) : (
                       <>
-                        <Sparkles className="w-4 h-4" />
+                        <Sparkles className="w-3.5 h-3.5" />
                         Reset Password
                       </>
                     )}
@@ -746,75 +714,36 @@ export default function PasswordReset({ onSwitchToLogin, isResetFlow = false, us
             </>
           )}
 
-          {step === 4 && (
-            <>
-              {/* Success Redirect Screen */}
-              <div className="text-center mb-6 sm:mb-8 relative z-10 py-6">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-tr from-green-600 via-emerald-600 to-teal-500 p-0.5 shadow-lg shadow-green-500/10 mb-6 animate-bounce">
-                  <div className="w-full h-full bg-white rounded-full flex items-center justify-center">
-                    <ShieldCheck className="w-8 h-8 text-green-500" />
-                  </div>
-                </div>
-                <h2 className="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-slate-900 via-slate-800 to-slate-600 bg-clip-text text-transparent tracking-tight">
-                  Reset Link Sent!
-                </h2>
-                <p className="text-sm text-slate-600 mt-4 px-4 leading-relaxed">
-                  A password reset link has been successfully sent to your email.
-                </p>
-                <div className="mt-8 flex flex-col items-center justify-center">
-                  <div className="w-12 h-12 rounded-full border-4 border-slate-100 border-t-pink-500 animate-spin mb-4" />
-                  <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
-                    Redirecting to login in <span className="text-pink-500 text-sm font-bold">{countdown}</span> seconds...
-                  </p>
-                </div>
-              </div>
-            </>
-          )}
-
           {/* Divider */}
-          {step !== 4 && (
-            <div className="my-6 flex items-center justify-between text-xs text-slate-400 relative z-10">
-              <span className="w-1/3 border-b border-slate-200" />
-              <span>OR</span>
-              <span className="w-1/3 border-b border-slate-200" />
-            </div>
-          )}
+          <div className="my-6 flex items-center justify-between text-xs text-premium-muted/30 relative z-10">
+            <span className="w-1/3 border-b border-premium-border" />
+            <span>OR</span>
+            <span className="w-1/3 border-b border-premium-border" />
+          </div>
 
-          {/* Return Actions */}
-          {step !== 4 && (
-            <div className="text-center relative z-10 text-sm">
-              {step === 2 && (
-                <button
-                  onClick={() => {
-                    setStep(1);
-                    setError("");
-                  }}
-                  className="inline-flex items-center gap-2 font-bold text-slate-600 hover:text-green-600 transition-colors focus:outline-none"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Use a different phone or email
-                </button>
-              )}
-              {step === 1 && (
-                <button
-                  onClick={onSwitchToLogin}
-                  className="inline-flex items-center gap-2 font-bold text-slate-600 hover:text-pink-500 transition-colors focus:outline-none"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back to Login
-                </button>
-              )}
-              {step === 3 && (
-                <button
-                  onClick={onSwitchToLogin}
-                  className="inline-flex items-center gap-2 font-bold text-slate-600 hover:text-pink-500 transition-colors focus:outline-none"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back to Login
-                </button>
-              )}
-            </div>
-          )}
+          {/* Switch actions */}
+          <div className="text-center relative z-10 text-sm">
+            {step === 2 && (
+              <button
+                onClick={() => {
+                  setStep(1);
+                  setError("");
+                }}
+                className="inline-flex items-center gap-2 font-bold text-accent-cyan hover:text-accent-cyan/80 transition-colors focus:outline-none cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Change Details
+              </button>
+            )}
+            {step === 1 && (
+              <button
+                onClick={onSwitchToLogin}
+                className="font-bold text-accent-cyan hover:text-accent-cyan/80 transition-colors focus:outline-none cursor-pointer"
+              >
+                Back to Login
+              </button>
+            )}
+          </div>
         </>
       )}
     </div>

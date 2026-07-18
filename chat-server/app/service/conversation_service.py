@@ -55,6 +55,15 @@ class ConversationService:
         if existing_conv:
             base = ConversationResponse.model_validate(existing_conv)
             enriched = await asyncio.to_thread(_enrich_conversation, base, current_user_id, token)
+            try:
+                from app.core.redis import redis_client
+                from app.redis.factory import get_store
+                from app.redis.store_enums import StoreEnums
+                store = get_store(redis_client.client, StoreEnums.USER_ACTIVE)
+                if enriched.partner_id:
+                    enriched.is_partner_online = await store.is_active(str(enriched.partner_id))
+            except Exception as e:
+                logger.error("Failed to query presence in create_conversation: %s", str(e))
             return APIResponse(
                 success=True,
                 message="Conversation retrieved successfully.",
@@ -65,6 +74,15 @@ class ConversationService:
             new_conv = await self.repository.create_conversation(u1, u2)
             base = ConversationResponse.model_validate(new_conv)
             enriched = await asyncio.to_thread(_enrich_conversation, base, current_user_id, token)
+            try:
+                from app.core.redis import redis_client
+                from app.redis.factory import get_store
+                from app.redis.store_enums import StoreEnums
+                store = get_store(redis_client.client, StoreEnums.USER_ACTIVE)
+                if enriched.partner_id:
+                    enriched.is_partner_online = await store.is_active(str(enriched.partner_id))
+            except Exception as e:
+                logger.error("Failed to query presence in create_conversation: %s", str(e))
             return APIResponse(
                 success=True,
                 message="Conversation created successfully.",
@@ -92,6 +110,17 @@ class ConversationService:
                 for base in base_list
             ])
 
+            try:
+                from app.core.redis import redis_client
+                from app.redis.factory import get_store
+                from app.redis.store_enums import StoreEnums
+                store = get_store(redis_client.client, StoreEnums.USER_ACTIVE)
+                for enriched in enriched_list:
+                    if enriched.partner_id:
+                        enriched.is_partner_online = await store.is_active(str(enriched.partner_id))
+            except Exception as e:
+                logger.error("Failed to query presence in list_user_conversations: %s", str(e))
+
             return APIResponse(
                 success=True,
                 message="Conversations list retrieved successfully.",
@@ -116,7 +145,7 @@ class ConversationService:
             if not conv:
                 raise ConversationNotFoundException()
 
-            messages = await self.repository.get_conversation_messages(conversation_id)
+            messages = await self.repository.get_conversation_messages(conversation_id, user_id)
             data = [MessageResponse.model_validate(m) for m in messages]
             return APIResponse(
                 success=True,

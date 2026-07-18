@@ -1,5 +1,9 @@
 import logging
 from fastapi import WebSocket
+from app.core.redis import redis_client
+from app.redis.factory import get_store
+from app.redis.store_enums import StoreEnums
+from app.websockets.event_type import EventType
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +23,8 @@ class ConnectionManager:
         Accept a WebSocket connection and register it under the user's ID.
         """
         await websocket.accept()
-        if user_id not in self.active_connections:
+        is_first_connection = user_id not in self.active_connections
+        if is_first_connection:
             self.active_connections[user_id] = []
         self.active_connections[user_id].append(websocket)
         logger.info(
@@ -28,7 +33,19 @@ class ConnectionManager:
             len(self.active_connections[user_id]),
         )
 
-    def disconnect(self, user_id: str, websocket: WebSocket) -> None:
+        if is_first_connection:
+            try:
+                store = get_store(redis_client.client, StoreEnums.USER_ACTIVE)
+                await store.set_active(user_id)
+                logger.info("Marked user %s as online in Redis", user_id)
+                await self.broadcast({
+                    "event_type": EventType.USER_ONLINE,
+                    "data": {"user_id": user_id}
+                })
+            except Exception as e:
+                logger.error("Failed to mark user %s as online in Redis/broadcast: %s", user_id, str(e))
+
+    async def disconnect(self, user_id: str, websocket: WebSocket) -> None:
         """
         Remove a WebSocket connection for a given user.
         """
@@ -42,6 +59,16 @@ class ConnectionManager:
                 )
                 if not self.active_connections[user_id]:
                     del self.active_connections[user_id]
+                    try:
+                        store = get_store(redis_client.client, StoreEnums.USER_ACTIVE)
+                        await store.set_inactive(user_id)
+                        logger.info("Marked user %s as offline in Redis", user_id)
+                        await self.broadcast({
+                            "event_type": EventType.USER_OFFLINE,
+                            "data": {"user_id": user_id}
+                        })
+                    except Exception as e:
+                        logger.error("Failed to mark user %s as offline in Redis/broadcast: %s", user_id, str(e))
             except ValueError:
                 pass
 

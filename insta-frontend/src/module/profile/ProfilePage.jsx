@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { 
-  Grid, Bookmark, User, Heart, MessageCircle, Settings, 
+  Grid, Bookmark, Heart, MessageCircle, 
   MoreHorizontal, Smile, Send, Bookmark as BookmarkIcon,
-  Sparkles, ShieldCheck, Link2, Lock
+  ShieldCheck, Link2, Lock
 } from "lucide-react";
 import { USER_API_BASE_URL } from "../../config";
 import EditProfilePage from "./EditProfilePage";
+import { gsap } from "gsap";
 
 export default function ProfilePage({ posts, token }) {
   const [activeTab, setActiveTab] = useState("posts");
@@ -22,7 +23,6 @@ export default function ProfilePage({ posts, token }) {
   const queryParams = new URLSearchParams(location.search);
   const searchUsername = queryParams.get("username");
 
-  // ── Real profile data from GET /user-profile/portfolio ─────────────────────────────
   const [profile, setProfile] = useState({
     username: "",
     display_name: "",
@@ -33,6 +33,17 @@ export default function ProfilePage({ posts, token }) {
     following_count: 0,
   });
   const [profileLoading, setProfileLoading] = useState(true);
+
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    // GSAP entrance
+    gsap.fromTo(
+      containerRef.current,
+      { opacity: 0, y: 15 },
+      { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }
+    );
+  }, [searchUsername]);
 
   const fetchFollowsList = async (type) => {
     if (!token) return;
@@ -105,24 +116,19 @@ export default function ProfilePage({ posts, token }) {
     fetchProfile();
   }, [token, searchUsername]);
 
-  // Avatar helper — gradient initial fallback
   const AvatarImg = ({ src, alt, className }) =>
     src ? (
       <img src={src} alt={alt} className={className} />
     ) : (
-      <div
-        className={`${className} bg-gradient-to-tr from-purple-400 via-pink-400 to-orange-400 flex items-center justify-center text-white font-bold`}
-      >
+      <div className={`${className} bg-premium-gray flex items-center justify-center text-premium-text font-bold`}>
         {alt?.[0]?.toUpperCase() ?? "U"}
       </div>
     );
 
-  // Skeleton block helper
   const Skeleton = ({ className }) => (
-    <span className={`inline-block bg-slate-100 animate-pulse rounded ${className}`} />
+    <span className={`inline-block bg-premium-gray animate-pulse rounded ${className}`} />
   );
 
-  // Mock saved posts
   const [savedPosts] = useState([
     {
       id: 101,
@@ -162,8 +168,7 @@ export default function ProfilePage({ posts, token }) {
     setCommentInputs((prev) => ({ ...prev, [postId]: "" }));
   };
 
-  const handleUpdateSuccess = (newData) => {
-    // Re-fetch profile to ensure stats and newly signed urls are aligned
+  const handleUpdateSuccess = () => {
     fetchProfile();
   };
 
@@ -181,20 +186,20 @@ export default function ProfilePage({ posts, token }) {
   }
 
   return (
-    <div className="w-full max-w-[935px] mx-auto px-4 py-8 bg-gradient-to-b from-[#fafafa] via-white to-[#fafafa] min-h-screen">
+    <div ref={containerRef} className="w-full max-w-[940px] mx-auto px-4 py-8 bg-premium-bg min-h-screen">
       
       {/* Profile Header */}
-      <header className="flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-14 pb-8 mb-8 border-b border-[#efefef]">
+      <header className="flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-14 pb-8 mb-8 border-b border-premium-border/50">
         
         {/* Profile Avatar */}
-        <div className="w-[150px] h-[150px] rounded-full overflow-hidden border border-[#dbdbdb] shrink-0">
+        <div className="w-[140px] h-[140px] rounded-full overflow-hidden border border-premium-border shrink-0 bg-premium-card p-1">
           {profileLoading ? (
-            <div className="w-full h-full bg-slate-100 animate-pulse" />
+            <div className="w-full h-full bg-premium-gray animate-pulse rounded-full" />
           ) : (
             <AvatarImg
               src={profile.profile_picture_url}
               alt={profile.username || "profile"}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover rounded-full"
             />
           )}
         </div>
@@ -203,24 +208,24 @@ export default function ProfilePage({ posts, token }) {
         <div className="flex-1 space-y-6 w-full text-center md:text-left">
           <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start gap-4">
             <div className="flex items-center gap-1.5">
-              <h2 className="text-xl font-semibold text-[#262626] tracking-tight">
+              <h2 className="text-xl font-bold font-display text-premium-text tracking-tight">
                 {profileLoading ? <Skeleton className="w-28 h-5" /> : profile.username || "—"}
               </h2>
-              <ShieldCheck className="w-5 h-5 text-blue-500 fill-blue-100" />
+              <ShieldCheck className="w-5 h-5 text-accent-cyan fill-accent-cyan/10" />
             </div>
             
             {searchUsername ? (
               profile.following_status === "ACCEPTED" ? (
                 <button 
                   onClick={handleFollowAction}
-                  className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs px-6 py-2 rounded-xl transition-all active:scale-95 cursor-pointer"
+                  className="bg-premium-gray hover:bg-premium-gray/80 text-premium-text font-bold text-xs px-6 py-2 rounded-2xl transition-all cursor-pointer"
                 >
                   Following
                 </button>
               ) : profile.following_status === "PENDING" ? (
                 <button 
                   onClick={handleFollowAction}
-                  className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs px-6 py-2 rounded-xl transition-all active:scale-95 cursor-pointer"
+                  className="bg-premium-gray hover:bg-premium-gray/80 text-premium-text font-bold text-xs px-6 py-2 rounded-2xl transition-all cursor-pointer"
                   title="Click to withdraw request"
                 >
                   Cancel Request
@@ -228,7 +233,7 @@ export default function ProfilePage({ posts, token }) {
               ) : (
                 <button 
                   onClick={handleFollowAction}
-                  className="bg-[#0095f6] hover:bg-[#00376b] text-white font-bold text-xs px-6 py-2 rounded-xl shadow-[0_2.5px_8px_rgba(0,149,246,0.2)] transition-all active:scale-95 cursor-pointer"
+                  className="bg-white text-premium-bg hover:bg-slate-100 font-bold text-xs px-6 py-2 rounded-2xl shadow transition-all cursor-pointer"
                 >
                   Follow
                 </button>
@@ -236,7 +241,7 @@ export default function ProfilePage({ posts, token }) {
             ) : (
               <button 
                 onClick={() => setIsEditing(true)}
-                className="bg-white hover:bg-slate-50 text-[#262626] font-bold text-xs px-5 py-2 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.06)] border border-slate-200 transition-all active:scale-95 cursor-pointer"
+                className="bg-premium-card hover:bg-premium-gray/30 text-premium-text border border-premium-border font-bold text-xs px-5 py-2.5 rounded-2xl transition-all cursor-pointer"
               >
                 Edit profile
               </button>
@@ -247,45 +252,45 @@ export default function ProfilePage({ posts, token }) {
           {(() => {
             const isPrivate = searchUsername && profile.account_visibility === "PRIVATE" && profile.following_status !== "ACCEPTED";
             return (
-              <div className="grid grid-cols-3 max-w-[400px] mx-auto md:mx-0 bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/60 p-3.5 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
-                <div className="text-center border-r border-[#efefef]">
-                  <span className="block font-extrabold text-sm text-[#262626]">
+              <div className="grid grid-cols-3 max-w-[380px] mx-auto md:mx-0 bg-premium-card rounded-2xl border border-premium-border p-3 shadow-premium">
+                <div className="text-center border-r border-premium-border/40">
+                  <span className="block font-bold text-sm text-premium-text">
                     {activeTab === "posts" ? posts.length : savedPosts.length}
                   </span>
-                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">posts</span>
+                  <span className="text-[9px] text-premium-muted uppercase font-bold tracking-wider">posts</span>
                 </div>
                 <div 
                   onClick={() => !isPrivate && fetchFollowsList("followers")}
-                  className={`text-center border-r border-[#efefef] rounded-lg transition-colors ${isPrivate ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:bg-slate-50"}`}
+                  className={`text-center border-r border-premium-border/40 rounded-lg transition-colors ${isPrivate ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-premium-gray/30"}`}
                 >
-                  <span className="block font-extrabold text-sm text-[#262626]">
+                  <span className="block font-bold text-sm text-premium-text">
                     {profileLoading ? <Skeleton className="w-8 h-4 mx-auto" /> : profile.followers_count.toLocaleString()}
                   </span>
-                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">followers</span>
+                  <span className="text-[9px] text-premium-muted uppercase font-bold tracking-wider">followers</span>
                 </div>
                 <div 
                   onClick={() => !isPrivate && fetchFollowsList("following")}
-                  className={`text-center rounded-lg transition-colors ${isPrivate ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:bg-slate-50"}`}
+                  className={`text-center rounded-lg transition-colors ${isPrivate ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:bg-premium-gray/30"}`}
                 >
-                  <span className="block font-extrabold text-sm text-[#262626]">
+                  <span className="block font-bold text-sm text-premium-text">
                     {profileLoading ? <Skeleton className="w-8 h-4 mx-auto" /> : profile.following_count.toLocaleString()}
                   </span>
-                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">following</span>
+                  <span className="text-[9px] text-premium-muted uppercase font-bold tracking-wider">following</span>
                 </div>
               </div>
             );
           })()}
 
           {/* Bio details */}
-          <div className="text-sm space-y-2 text-[#262626]">
-            <h1 className="font-bold text-[#1e1e1e] text-base">
+          <div className="text-xs space-y-2 text-premium-text">
+            <h1 className="font-bold text-premium-text text-sm">
               {profileLoading ? <Skeleton className="w-36 h-4" /> : profile.display_name || "—"}
             </h1>
             {(!searchUsername || profile.account_visibility !== "PRIVATE" || profile.following_status === "ACCEPTED") && (
               <>
-                <p className="whitespace-pre-line leading-relaxed text-slate-600 font-medium">
+                <p className="whitespace-pre-line leading-relaxed text-premium-muted font-medium">
                   {profileLoading ? (
-                    <span className="flex flex-col gap-1.5">
+                    <span className="flex flex-col gap-1">
                       <Skeleton className="w-full h-3" />
                       <Skeleton className="w-4/5 h-3" />
                     </span>
@@ -298,9 +303,9 @@ export default function ProfilePage({ posts, token }) {
                     href={`https://${profile.website}`} 
                     target="_blank" 
                     rel="noopener noreferrer" 
-                    className="inline-flex items-center gap-1.5 text-[#0095f6] hover:text-[#00376b] font-semibold transition-colors"
+                    className="inline-flex items-center gap-1 text-accent-cyan hover:text-accent-cyan/80 font-bold transition-colors"
                   >
-                    <Link2 className="w-4 h-4" />
+                    <Link2 className="w-3.5 h-3.5" />
                     <span>{profile.website}</span>
                   </a>
                 )}
@@ -312,34 +317,34 @@ export default function ProfilePage({ posts, token }) {
       </header>
 
       {searchUsername && profile.account_visibility === "PRIVATE" && profile.following_status !== "ACCEPTED" ? (
-        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-[#efefef] shadow-[0_10px_30px_rgba(0,0,0,0.01)] text-center space-y-4">
-          <div className="p-4 bg-slate-50 rounded-full border border-slate-100 text-slate-400">
+        <div className="flex flex-col items-center justify-center py-20 bg-premium-card rounded-3xl border border-premium-border text-center space-y-4 shadow-premium">
+          <div className="p-4 bg-premium-gray rounded-full border border-premium-border text-premium-muted">
             <Lock className="w-8 h-8 stroke-[1.5]" />
           </div>
           <div>
-            <h3 className="font-bold text-sm text-[#262626]">This Account is Private</h3>
-            <p className="text-xs text-slate-400 mt-1 max-w-[280px] mx-auto font-medium">
-              Follow this account to see their photos and videos.
+            <h3 className="font-bold text-sm text-premium-text">This Account is Private</h3>
+            <p className="text-xs text-premium-muted mt-1 max-w-[280px] mx-auto leading-relaxed">
+              Follow this account to view their photographs and updates.
             </p>
           </div>
         </div>
       ) : (
         <>
           {/* Tabs Navigation */}
-          <div className="flex justify-center mb-6">
-            <div className="bg-[#efefef]/60 p-1 rounded-xl flex gap-1.5">
+          <div className="flex justify-center mb-8">
+            <div className="bg-premium-card p-1 rounded-2xl flex gap-1.5 border border-premium-border">
               <button 
                 onClick={() => setActiveTab("posts")}
-                className={`flex items-center gap-2 px-6 py-2 rounded-lg text-xs font-bold transition-all focus:outline-none select-none
-                  ${activeTab === "posts" ? "bg-white text-[#262626] shadow-[0_2px_8px_rgba(0,0,0,0.06)]" : "text-slate-500 hover:text-slate-800"}`}
+                className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-bold transition-all focus:outline-none select-none cursor-pointer
+                  ${activeTab === "posts" ? "bg-premium-gray text-premium-text" : "text-premium-muted hover:text-premium-text"}`}
               >
                 <Grid className="w-3.5 h-3.5" />
                 <span>Posts</span>
               </button>
               <button 
                 onClick={() => setActiveTab("saved")}
-                className={`flex items-center gap-2 px-6 py-2 rounded-lg text-xs font-bold transition-all focus:outline-none select-none
-                  ${activeTab === "saved" ? "bg-white text-[#262626] shadow-[0_2px_8px_rgba(0,0,0,0.06)]" : "text-slate-500 hover:text-slate-800"}`}
+                className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-bold transition-all focus:outline-none select-none cursor-pointer
+                  ${activeTab === "saved" ? "bg-premium-gray text-premium-text" : "text-premium-muted hover:text-premium-text"}`}
               >
                 <Bookmark className="w-3.5 h-3.5" />
                 <span>Saved</span>
@@ -349,17 +354,17 @@ export default function ProfilePage({ posts, token }) {
 
           {/* Grid Content */}
           {displayedPosts.length === 0 ? (
-            <div className="text-center py-24 bg-white rounded-3xl border border-[#efefef] shadow-[0_10px_30px_rgba(0,0,0,0.01)]">
-              <Grid className="w-12 h-12 mx-auto mb-4 stroke-[1.5] text-slate-300" />
-              <p className="text-sm font-bold text-slate-400">No Posts Yet</p>
+            <div className="text-center py-24 bg-premium-card rounded-3xl border border-premium-border shadow-premium">
+              <Grid className="w-10 h-10 mx-auto mb-3 stroke-[1.5] text-premium-muted/50" />
+              <p className="text-xs font-bold text-premium-muted">No Posts Yet</p>
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-2 sm:gap-6">
+            <div className="grid grid-cols-3 gap-3 sm:gap-6">
               {displayedPosts.map((post) => (
                 <div 
                   key={post.id} 
                   onClick={() => handlePostClick(post)}
-                  className="relative aspect-square cursor-pointer group bg-slate-50 rounded-2xl overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.02)] border border-slate-100/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                  className="relative aspect-square cursor-pointer group bg-premium-card rounded-2xl overflow-hidden border border-premium-border/50 hover:scale-[1.01] transition-transform duration-300"
                 >
                   <img 
                     src={post.image} 
@@ -367,14 +372,13 @@ export default function ProfilePage({ posts, token }) {
                     className="w-full h-full object-cover"
                   />
                   
-                  {/* Glass overlay */}
-                  <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-6 text-white text-xs sm:text-sm font-bold">
-                    <div className="flex items-center gap-1.5 transition-transform duration-300 translate-y-2 group-hover:translate-y-0">
-                      <Heart className="w-5 h-5 fill-current text-white" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-6 text-white text-xs font-bold">
+                    <div className="flex items-center gap-1.5">
+                      <Heart className="w-4.5 h-4.5 fill-current text-white" />
                       <span>{post.likes || 0}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 transition-transform duration-300 translate-y-2 group-hover:translate-y-0">
-                      <MessageCircle className="w-5 h-5 fill-current text-white" />
+                    <div className="flex items-center gap-1.5">
+                      <MessageCircle className="w-4.5 h-4.5 fill-current text-white" />
                       <span>{post.comments ? post.comments.length : (post.commentsCount || 0)}</span>
                     </div>
                   </div>
@@ -388,22 +392,21 @@ export default function ProfilePage({ posts, token }) {
       {/* Post Detail Modal */}
       {selectedPost && (
         <div 
-          className="fixed inset-0 bg-black/45 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
           onClick={handleCloseModal}
         >
           <div 
-            className="bg-white max-w-[850px] w-full max-h-[85vh] rounded-3xl overflow-hidden flex flex-col md:flex-row relative shadow-[0_24px_50px_rgba(0,0,0,0.25)] border border-slate-100"
+            className="bg-premium-card max-w-[850px] w-full max-h-[85vh] rounded-3xl overflow-hidden flex flex-col md:flex-row relative border border-premium-border"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Close Button */}
             <button 
               onClick={handleCloseModal}
-              className="absolute top-4 right-4 bg-white/80 hover:bg-white text-slate-500 hover:text-slate-900 z-10 w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-colors font-bold text-sm"
+              className="absolute top-4 right-4 bg-premium-gray/80 hover:bg-premium-gray text-premium-text z-10 w-8 h-8 rounded-full flex items-center justify-center transition-colors font-bold text-xs cursor-pointer"
             >
               ✕
             </button>
 
-            {/* Left — Image */}
+            {/* Left Image */}
             <div className="flex-1 bg-black flex items-center justify-center aspect-square md:aspect-auto">
               <img 
                 src={selectedPost.image} 
@@ -412,33 +415,28 @@ export default function ProfilePage({ posts, token }) {
               />
             </div>
 
-            {/* Right — Detail panel */}
-            <div className="w-full md:w-[380px] flex flex-col h-[400px] md:h-auto border-t md:border-t-0 md:border-l border-[#efefef] bg-white">
+            {/* Right Detail Panel */}
+            <div className="w-full md:w-[380px] flex flex-col h-[400px] md:h-auto border-t md:border-t-0 md:border-l border-premium-border bg-premium-card">
               
               {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b border-[#efefef]">
+              <div className="flex items-center justify-between p-4 border-b border-premium-border/50">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full p-[1.5px] bg-gradient-to-tr from-[#ff3040] to-[#af26b3]">
-                    <div className="w-full h-full bg-white rounded-full p-[1px]">
-                      <AvatarImg
-                        src={profile.profile_picture_url}
-                        alt={profile.username || "user"}
-                        className="w-full h-full object-cover rounded-full"
-                      />
-                    </div>
+                  <div className="w-8 h-8 rounded-full p-[1.5px] bg-premium-gray">
+                    <AvatarImg
+                      src={profile.profile_picture_url}
+                      alt={profile.username || "user"}
+                      className="w-full h-full object-cover rounded-full"
+                    />
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-bold text-xs text-[#262626]">{profile.username || "—"}</span>
-                    <span className="text-[9px] text-slate-400 font-semibold">Creator</span>
+                    <span className="font-bold text-xs text-premium-text">{profile.username || "—"}</span>
+                    <span className="text-[9px] text-premium-muted font-medium">Creator</span>
                   </div>
                 </div>
-                <button className="text-slate-400 hover:text-slate-800">
-                  <MoreHorizontal className="w-5 h-5" />
-                </button>
               </div>
 
-              {/* Comments feed */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[200px] md:max-h-[350px] scrollbar-none">
+              {/* Comments Feed */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[180px] md:max-h-[320px] bg-premium-bg/30">
                 {/* Caption */}
                 <div className="text-xs flex gap-3">
                   <AvatarImg
@@ -447,40 +445,40 @@ export default function ProfilePage({ posts, token }) {
                     className="w-7 h-7 rounded-full object-cover shrink-0"
                   />
                   <div>
-                    <span className="font-bold text-[#262626] mr-1.5 hover:underline cursor-pointer">
+                    <span className="font-bold text-premium-text mr-1.5 hover:text-accent-cyan cursor-pointer transition-colors">
                       {profile.username || "—"}
                     </span>
-                    <span className="text-slate-600 font-medium leading-relaxed">{selectedPost.caption}</span>
+                    <span className="text-premium-text/90 leading-relaxed font-medium">{selectedPost.caption}</span>
                   </div>
                 </div>
 
                 {/* Comments */}
                 {selectedPost.comments && selectedPost.comments.map((comment, index) => (
                   <div key={index} className="text-xs flex gap-3">
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 text-white flex-shrink-0 flex items-center justify-center font-bold text-[8px] uppercase select-none">
+                    <div className="w-7 h-7 rounded-full bg-premium-gray text-premium-text flex-shrink-0 flex items-center justify-center font-bold text-[8px] uppercase border border-premium-border select-none">
                       {comment.username.slice(0, 2)}
                     </div>
                     <div>
-                      <span className="font-bold text-[#262626] mr-1.5 hover:underline cursor-pointer">
+                      <span className="font-bold text-premium-text mr-1.5 hover:text-accent-cyan cursor-pointer transition-colors">
                         {comment.username}
                       </span>
-                      <span className="text-slate-600 leading-relaxed">{comment.text}</span>
+                      <span className="text-premium-text/90 leading-relaxed">{comment.text}</span>
                     </div>
                   </div>
                 ))}
               </div>
 
               {/* Action drawer */}
-              <div className="p-4 border-t border-[#efefef] space-y-2 bg-[#fafafa]/50">
+              <div className="p-4 border-t border-premium-border space-y-2 bg-premium-bg/50">
                 <div className="flex items-center justify-between">
-                  <div className="flex gap-4">
-                    <Heart className="w-6 h-6 text-[#262626] hover:text-red-500 cursor-pointer transition-colors" />
-                    <MessageCircle className="w-6 h-6 text-[#262626] hover:opacity-60 cursor-pointer" />
-                    <Send className="w-6 h-6 text-[#262626] hover:opacity-60 cursor-pointer" />
+                  <div className="flex gap-4 text-premium-text">
+                    <Heart className="w-5 h-5 hover:text-accent-coral cursor-pointer transition-colors" />
+                    <MessageCircle className="w-5 h-5 hover:text-premium-muted cursor-pointer" />
+                    <Send className="w-5 h-5 hover:text-premium-muted cursor-pointer" />
                   </div>
-                  <BookmarkIcon className="w-6 h-6 text-[#262626] hover:opacity-60 cursor-pointer" />
+                  <BookmarkIcon className="w-5 h-5 text-premium-text hover:text-accent-cyan cursor-pointer" />
                 </div>
-                <div className="font-bold text-xs text-[#262626]">
+                <div className="font-bold text-xs text-premium-text">
                   {(selectedPost.likes || 0).toLocaleString()} likes
                 </div>
               </div>
@@ -488,20 +486,19 @@ export default function ProfilePage({ posts, token }) {
               {/* Comment form */}
               <form 
                 onSubmit={(e) => handleCommentSubmit(e, selectedPost.id)}
-                className="flex items-center gap-3 p-3 border-t border-[#efefef] bg-white mt-auto"
+                className="flex items-center gap-3 p-3 border-t border-premium-border bg-premium-card mt-auto"
               >
-                <Smile className="w-5 h-5 text-slate-400 hover:text-slate-700 cursor-pointer shrink-0" />
                 <input 
                   type="text" 
                   placeholder="Add a comment..."
                   value={commentInputs[selectedPost.id] || ""}
                   onChange={(e) => setCommentInputs({ ...commentInputs, [selectedPost.id]: e.target.value })}
-                  className="flex-1 bg-transparent text-xs focus:outline-none text-[#262626] placeholder-[#8e8e8e]"
+                  className="flex-1 bg-transparent text-xs focus:outline-none text-premium-text placeholder-premium-muted/50"
                 />
                 <button 
                   type="submit"
                   disabled={!commentInputs[selectedPost.id]?.trim()}
-                  className="font-bold text-xs text-[#0095f6] disabled:opacity-30 hover:text-[#00376b] transition-colors focus:outline-none"
+                  className="font-bold text-xs text-accent-cyan disabled:opacity-30 hover:text-accent-cyan/80 transition-colors focus:outline-none cursor-pointer"
                 >
                   Post
                 </button>
@@ -513,11 +510,10 @@ export default function ProfilePage({ posts, token }) {
 
       {/* Followers / Following Modal */}
       {showFollowsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full overflow-hidden border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.15)] flex flex-col max-h-[400px]">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-              <span className="font-extrabold text-[#262626] capitalize">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-premium-card rounded-3xl max-w-sm w-full overflow-hidden border border-premium-border shadow-premium flex flex-col max-h-[380px]">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-premium-border/50">
+              <span className="font-bold text-premium-text capitalize font-display">
                 {showFollowsModal}
               </span>
               <button 
@@ -525,35 +521,34 @@ export default function ProfilePage({ posts, token }) {
                   setShowFollowsModal(null);
                   setFollowsList([]);
                 }}
-                className="text-slate-400 hover:text-slate-600 transition-colors font-bold text-lg focus:outline-none cursor-pointer"
+                className="text-premium-muted hover:text-premium-text transition-colors font-bold text-lg focus:outline-none cursor-pointer"
               >
                 &times;
               </button>
             </div>
             
-            {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-premium-bg/30">
               {followsLoading ? (
                 <div className="flex flex-col gap-3">
                   {[1, 2, 3].map((n) => (
                     <div key={n} className="flex items-center gap-3 animate-pulse">
-                      <div className="w-10 h-10 bg-slate-100 rounded-full" />
+                      <div className="w-9 h-9 bg-premium-gray rounded-full" />
                       <div className="flex-1 space-y-2">
-                        <div className="h-3.5 bg-slate-100 rounded w-1/2" />
-                        <div className="h-3 bg-slate-100 rounded w-1/3" />
+                        <div className="h-3 bg-premium-gray rounded w-1/2" />
+                        <div className="h-2.5 bg-premium-gray rounded w-1/3" />
                       </div>
                     </div>
                   ))}
                 </div>
               ) : followsList.length === 0 ? (
-                <div className="text-center py-10 text-slate-400 font-medium text-sm">
+                <div className="text-center py-10 text-premium-muted text-xs font-semibold">
                   No {showFollowsModal} found.
                 </div>
               ) : (
                 followsList.map((user) => (
                   <div key={user.user_id} className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full overflow-hidden border border-slate-100 shrink-0">
+                      <div className="w-9 h-9 rounded-full overflow-hidden border border-premium-border shrink-0 bg-premium-gray">
                         <AvatarImg 
                           src={user.profile_picture_url} 
                           alt={user.username} 
@@ -563,11 +558,11 @@ export default function ProfilePage({ posts, token }) {
                       <div className="text-left">
                         <a
                           href={`/profile?username=${user.username}`}
-                          className="font-bold text-sm text-[#262626] hover:underline cursor-pointer"
+                          className="font-bold text-xs text-premium-text hover:text-accent-cyan cursor-pointer transition-colors"
                         >
                           {user.username}
                         </a>
-                        <p className="text-xs text-slate-400 font-semibold">
+                        <p className="text-[10px] text-premium-muted">
                           {user.display_name}
                         </p>
                       </div>

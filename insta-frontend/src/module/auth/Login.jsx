@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Eye, EyeOff, Lock, User, Compass, Sparkles, AlertCircle } from "lucide-react";
 import { API_BASE_URL } from "../../config";
+import { gsap } from "gsap";
 
 export default function Login({ onSwitchToRegister, onSwitchToPasswordReset }) {
   const [identifier, setIdentifier] = useState("");
@@ -12,6 +13,17 @@ export default function Login({ onSwitchToRegister, onSwitchToPasswordReset }) {
   // States for concurrent session warning popup
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [pendingLoginData, setPendingLoginData] = useState(null);
+
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    // Premium Apple/Linear inspired entrance animation
+    gsap.fromTo(
+      containerRef.current,
+      { opacity: 0, y: 40, filter: "blur(8px)" },
+      { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.8, ease: "power4.out" }
+    );
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -107,49 +119,49 @@ export default function Login({ onSwitchToRegister, onSwitchToPasswordReset }) {
 
   return (
     <>
-      <div className="relative w-full max-w-md p-6 sm:p-8 rounded-2xl sm:rounded-3xl bg-white/80 backdrop-blur-xl border border-slate-200 shadow-2xl overflow-hidden transition-all duration-500 hover:border-purple-500/30">
-        {/* Decorative Glows */}
-        <div className="absolute -top-24 -left-24 w-48 h-48 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-pink-600/10 rounded-full blur-3xl pointer-events-none" />
+      <div 
+        ref={containerRef}
+        className="relative w-full max-w-[420px] p-8 rounded-3xl bg-premium-card border border-premium-border shadow-premium overflow-hidden transition-all duration-300"
+      >
+        {/* Subtle Decorative Glow */}
+        <div className="absolute -top-32 -left-32 w-64 h-64 bg-accent-blue/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Header */}
-        <div className="text-center mb-6 sm:mb-8 relative z-10">
-          <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-purple-600 via-pink-600 to-orange-500 p-0.5 shadow-lg shadow-purple-500/10 mb-4 animate-pulse">
-            <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center">
-              <Compass className="w-7 h-7 sm:w-8 sm:h-8 text-pink-500" />
-            </div>
+        <div className="text-center mb-8 relative z-10">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-premium-gray border border-premium-border p-0.5 mb-4 shadow-inner">
+            <Compass className="w-6 h-6 text-accent-cyan" />
           </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-slate-900 via-slate-800 to-slate-600 bg-clip-text text-transparent tracking-tight">
+          <h2 className="text-2xl font-bold font-display text-premium-text tracking-tight">
             Welcome Back
           </h2>
-          <p className="text-sm text-slate-500 mt-2">
-            Discover stories, connect with friends
+          <p className="text-sm text-premium-muted mt-2">
+            Experience Instaclone's minimal design
           </p>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
           {error && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs text-center animate-shake">
+            <div className="p-3.5 rounded-2xl bg-accent-coral/10 border border-accent-coral/20 text-accent-coral text-xs text-center font-medium">
               {error}
             </div>
           )}
 
           {/* Identifier Field */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider block">
+            <label className="text-xs font-semibold text-premium-muted uppercase tracking-wider block">
               Username, Email, or Phone
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                <User className="w-5 h-5 transition-colors group-focus-within:text-purple-600" />
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-premium-muted">
+                <User className="w-4 h-4" />
               </div>
               <input
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="e.g. alex_story or alex@example.com"
-                className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-600/10 transition-all duration-300"
+                placeholder="alex_story or email"
+                className="w-full pl-10 pr-4 py-3 bg-premium-bg border border-premium-border rounded-2xl text-premium-text placeholder-premium-muted/50 text-sm focus:outline-none focus:border-accent-blue focus:ring-1 focus:ring-accent-blue/30 transition-all duration-200"
               />
             </div>
           </div>
@@ -157,34 +169,34 @@ export default function Login({ onSwitchToRegister, onSwitchToPasswordReset }) {
           {/* Password Field */}
           <div className="space-y-2">
             <div className="flex justify-between items-center">
-              <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+              <label className="text-xs font-semibold text-premium-muted uppercase tracking-wider">
                 Password
               </label>
               <button
                 type="button"
                 onClick={onSwitchToPasswordReset}
-                className="text-xs text-pink-500 hover:text-pink-400 transition-colors font-medium focus:outline-none"
+                className="text-xs text-accent-cyan hover:text-accent-cyan/80 transition-colors font-medium focus:outline-none"
               >
                 Forgot?
               </button>
             </div>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                <Lock className="w-5 h-5" />
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-premium-muted">
+                <Lock className="w-4 h-4" />
               </div>
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                className="w-full pl-11 pr-11 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-600/10 transition-all duration-300"
+                placeholder="Enter password"
+                className="w-full pl-10 pr-10 py-3 bg-premium-bg border border-premium-border rounded-2xl text-premium-text placeholder-premium-muted/50 text-sm focus:outline-none focus:border-accent-blue focus:ring-1 focus:ring-accent-blue/30 transition-all duration-200"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-700 transition-colors"
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-premium-muted hover:text-premium-text transition-colors"
               >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
           </div>
@@ -193,15 +205,14 @@ export default function Login({ onSwitchToRegister, onSwitchToPasswordReset }) {
           <button
             type="submit"
             disabled={isLoading}
-            className="relative w-full py-4 rounded-2xl font-bold text-white overflow-hidden shadow-lg transition-all duration-300 transform active:scale-[0.98] disabled:opacity-50"
+            className="w-full py-3.5 rounded-2xl bg-white hover:bg-slate-100 text-premium-bg font-bold text-sm shadow-lg transition-all duration-200 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 transition-transform duration-500 hover:scale-105" />
-            <span className="relative z-10 flex items-center justify-center gap-2">
+            <span className="flex items-center justify-center gap-2">
               {isLoading ? (
-                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span className="w-4 h-4 border-2 border-premium-bg/30 border-t-premium-bg rounded-full animate-spin" />
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4" />
+                  <Sparkles className="w-3.5 h-3.5" />
                   Sign In
                 </>
               )}
@@ -210,49 +221,49 @@ export default function Login({ onSwitchToRegister, onSwitchToPasswordReset }) {
         </form>
 
         {/* Divider */}
-        <div className="my-6 flex items-center justify-between text-xs text-slate-400 relative z-10">
-          <span className="w-1/3 border-b border-slate-200" />
+        <div className="my-6 flex items-center justify-between text-xs text-premium-muted/30 relative z-10">
+          <span className="w-1/3 border-b border-premium-border" />
           <span>OR</span>
-          <span className="w-1/3 border-b border-slate-200" />
+          <span className="w-1/3 border-b border-premium-border" />
         </div>
 
         {/* Switch to Register */}
         <div className="text-center relative z-10 text-sm">
-          <span className="text-slate-600">Don't have an account? </span>
+          <span className="text-premium-muted">Don't have an account? </span>
           <button
             onClick={onSwitchToRegister}
-            className="font-bold text-pink-500 hover:text-pink-400 hover:underline transition-colors focus:outline-none"
+            className="font-bold text-accent-cyan hover:text-accent-cyan/80 hover:underline transition-colors focus:outline-none cursor-pointer"
           >
             Sign Up
           </button>
         </div>
       </div>
 
-      {/* Concurrent Session Warning Modal - Placed outside parent to escape filter/transform constraints */}
+      {/* Concurrent Session Warning Modal */}
       {showConflictModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
-          <div className="bg-white rounded-3xl overflow-hidden max-w-sm w-full shadow-2xl border border-slate-100 flex flex-col items-center animate-scale-up">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fade-in">
+          <div className="bg-premium-card rounded-3xl overflow-hidden max-w-sm w-full shadow-premium border border-premium-border flex flex-col items-center">
             
             {/* Warning Icon & Title area */}
             <div className="p-6 pt-8 flex flex-col items-center text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center text-red-500">
-                <AlertCircle className="w-9 h-9" />
+              <div className="w-14 h-14 rounded-full bg-accent-coral/10 border border-accent-coral/20 flex items-center justify-center text-accent-coral">
+                <AlertCircle className="w-8 h-8" />
               </div>
               <div className="space-y-2">
-                <h3 className="text-lg font-bold text-slate-800 tracking-tight">
+                <h3 className="text-lg font-bold text-premium-text font-display tracking-tight">
                   Log Out of Other Device?
                 </h3>
-                <p className="text-sm text-slate-500 leading-relaxed px-2">
+                <p className="text-sm text-premium-muted leading-relaxed px-2">
                   You are already logged in to another device. To continue, you must log out of your previous session.
                 </p>
               </div>
             </div>
 
-            {/* Action buttons (Instagram flat-border list style) */}
-            <div className="w-full border-t border-slate-100 flex flex-col">
+            {/* Action buttons */}
+            <div className="w-full border-t border-premium-border flex flex-col">
               <button
                 onClick={handleForceLogout}
-                className="w-full py-4 text-center font-bold text-sm text-red-500 hover:bg-slate-50 transition-colors focus:outline-none border-b border-slate-100"
+                className="w-full py-4 text-center font-bold text-sm text-accent-coral hover:bg-premium-gray/30 transition-colors focus:outline-none border-b border-premium-border cursor-pointer"
               >
                 Log Out of Other Device
               </button>
@@ -261,7 +272,7 @@ export default function Login({ onSwitchToRegister, onSwitchToPasswordReset }) {
                   setShowConflictModal(false);
                   setPendingLoginData(null);
                 }}
-                className="w-full py-4 text-center font-semibold text-sm text-slate-700 hover:bg-slate-50 transition-colors focus:outline-none"
+                className="w-full py-4 text-center font-semibold text-sm text-premium-text hover:bg-premium-gray/30 transition-colors focus:outline-none cursor-pointer"
               >
                 Cancel
               </button>

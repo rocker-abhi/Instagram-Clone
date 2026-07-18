@@ -49,13 +49,24 @@ class ConversationRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_conversation_messages(self, conversation_id: uuid.UUID) -> list[Message]:
+    async def get_conversation_messages(self, conversation_id: uuid.UUID, user_id: uuid.UUID | None = None) -> list[Message]:
         """
-        Get all messages for a specific conversation.
+        Get all messages for a specific conversation, filtering out deleted ones.
         """
+        from app.models.deleted_message import DeletedMessage
         
         stmt = select(Message).where(
-            Message.conversation_id == conversation_id
-        ).order_by(Message.created_at.asc())
+            and_(
+                Message.conversation_id == conversation_id,
+                Message.deleted_for_everyone.isnot(True)
+            )
+        )
+        
+        if user_id:
+            subquery = select(DeletedMessage.message_id).where(DeletedMessage.user_id == user_id)
+            stmt = stmt.where(Message.id.not_in(subquery))
+            
+        stmt = stmt.order_by(Message.created_at.asc())
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+

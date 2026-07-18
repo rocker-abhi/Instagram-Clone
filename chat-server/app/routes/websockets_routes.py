@@ -6,13 +6,19 @@ from app.websockets.interceptor import WebSocketAuthenticator
 import uuid
 from app.websockets.event_type import EventType
 from app.websockets.schemas.chat_message import ChatMessageSchema
+from app.websockets.schemas.message_delete import MessageDeleteSchema
+from app.websockets.schemas.message_edit import MessageEditSchema
 from app.websockets.handler.chat_handler import ChatHandler
+from app.websockets.handler.delete_handler import DeleteHandler
+from app.websockets.handler.edit_handler import EditHandler
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["Chat WebSockets"])
 authenticator = WebSocketAuthenticator()
 chat_handler = ChatHandler()
+delete_handler = DeleteHandler()
+edit_handler = EditHandler()
 
 
 @router.websocket("/ws")
@@ -23,6 +29,7 @@ async def websocket_chat_endpoint(websocket: WebSocket):
     and listens for incoming messages.
     """
     user_id = None
+    user_id_str = None
     try:
         # Authenticate the incoming connection
         user_id_str = await authenticator.authenticate(websocket)
@@ -52,6 +59,26 @@ async def websocket_chat_endpoint(websocket: WebSocket):
                         "error": "Invalid event data format",
                         "detail": str(ex)
                     })
+            elif event_type == EventType.MESSAGE_DELETE:
+                try:
+                    payload = MessageDeleteSchema(**event_data)
+                    await delete_handler.handle(user_id, payload)
+                except Exception as ex:
+                    logger.error("Failed to process message delete payload: %s", str(ex))
+                    await websocket.send_json({
+                        "error": "Invalid message delete data format",
+                        "detail": str(ex)
+                    })
+            elif event_type == EventType.MESSAGE_EDIT:
+                try:
+                    payload = MessageEditSchema(**event_data)
+                    await edit_handler.handle(user_id, payload)
+                except Exception as ex:
+                    logger.error("Failed to process message edit payload: %s", str(ex))
+                    await websocket.send_json({
+                        "error": "Invalid message edit data format",
+                        "detail": str(ex)
+                    })
             else:
                 # Echo other message back or discard
                 await websocket.send_json({
@@ -69,4 +96,5 @@ async def websocket_chat_endpoint(websocket: WebSocket):
             pass
     finally:
         if user_id_str:
-            manager.disconnect(user_id_str, websocket)
+            await manager.disconnect(user_id_str, websocket)
+
