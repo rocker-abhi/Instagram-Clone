@@ -10,7 +10,8 @@ import SettingsPage from "../settings/SettingsPage";
 import RequestsPage from "../requests/RequestsPage";
 import NotificationsPage from "../notifications/NotificationsPage";
 import ChatsPage from "../chats/ChatsPage";
-import { USER_API_BASE_URL, CHAT_WS_URL } from "../../config";
+import CreatePostModal from "../post/CreatePostModal";
+import { USER_API_BASE_URL, POST_API_BASE_URL, CHAT_WS_URL } from "../../config";
 import { gsap } from "gsap";
 
 const LogoIcon = (props) => (
@@ -56,7 +57,30 @@ export default function HomePage({ onLogout, token }) {
   const activeView = location.pathname === "/profile" ? "profile" : location.pathname === "/search" ? "search" : location.pathname === "/settings" ? "settings" : location.pathname === "/requests" ? "requests" : location.pathname === "/notifications" ? "notifications" : location.pathname === "/chats" ? "chats" : "feed";
   const [unreadCounts, setUnreadCounts] = useState({});
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const activeViewRef = useRef(activeView);
+
+  const handlePostCreated = (newPost) => {
+    setPosts((prev) => [
+      {
+        id: newPost.id || Date.now(),
+        username: me.username || newPost.username || "current_user",
+        userAvatar: me.profile_picture_url || newPost.userAvatar || "",
+        image: newPost.image || (newPost.images && newPost.images[0]) || "",
+        caption: newPost.caption || "",
+        likes: 0,
+        hasLiked: false,
+        hasSaved: false,
+        comments: [],
+        time: "Just now"
+      },
+      ...prev
+    ]);
+  };
+
+  const handlePostDeleted = (deletedPostId) => {
+    setPosts((prev) => prev.filter((p) => p.id !== deletedPostId));
+  };
 
   useEffect(() => {
     activeViewRef.current = activeView;
@@ -117,52 +141,43 @@ export default function HomePage({ onLogout, token }) {
     }
   }, [activeView]);
 
-  const [posts, setPosts] = useState([
-    {
-      id: 1,
-      username: "travel_diaries",
-      userAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80",
-      image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80",
-      caption: "Chasing sunsets around the world 🌅✨ #wanderlust #beaches #sunset",
-      likes: 1240,
-      hasLiked: false,
-      hasSaved: false,
-      comments: [
-        { username: "nature_lover", text: "This is breathtaking!" },
-        { username: "alex_stories", text: "Adding to my bucket list ASAP!" }
-      ],
-      time: "2h"
-    },
-    {
-      id: 2,
-      username: "chef_master",
-      userAvatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80",
-      image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80",
-      caption: "Freshly made artisanal salad for lunch today! Healthy & delicious 🥗💚 #healthyfood #chef",
-      likes: 852,
-      hasLiked: false,
-      hasSaved: false,
-      comments: [
-        { username: "foodie_girl", text: "Recipe please! 😍" }
-      ],
-      time: "5h"
-    },
-    {
-      id: 3,
-      username: "tech_vision",
-      userAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80",
-      image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=800&q=80",
-      caption: "Designing the workspace of the future. Clean setups, high productivity 💻 #desksetup #workspace",
-      likes: 2195,
-      hasLiked: false,
-      hasSaved: false,
-      comments: [
-        { username: "code_hustler", text: "Minimalism at its best!" },
-        { username: "gamer_guy", text: "What monitor arm is that?" }
-      ],
-      time: "1d"
-    }
-  ]);
+  const [posts, setPosts] = useState([]);
+
+  useEffect(() => {
+    if (!token) return;
+    const fetchFeedPosts = async () => {
+      try {
+        const res = await fetch(`${POST_API_BASE_URL}/posts`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            const mapped = json.data.map((p) => ({
+              id: p.id,
+              username: me.username || "user",
+              userAvatar: me.profile_picture_url || "",
+              image: p.media?.[0]?.url || "",
+              images: p.media?.map((m) => m.url) || [],
+              caption: p.caption || "",
+              location: p.location || "",
+              visibility: p.visibility,
+              commentsEnabled: p.comments_enabled,
+              likes: 0,
+              hasLiked: false,
+              hasSaved: false,
+              comments: [],
+              time: p.created_at ? new Date(p.created_at).toLocaleDateString() : "Just now"
+            }));
+            setPosts(mapped);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to fetch feed posts from Post-Server:", err);
+      }
+    };
+    fetchFeedPosts();
+  }, [token, me]);
 
   const [stories] = useState([
     { id: 1, username: "your_story", isUser: true },
@@ -454,6 +469,13 @@ export default function HomePage({ onLogout, token }) {
                 <span className="text-sm font-semibold hidden xl:inline">Notifications</span>
               </button>
               <button 
+                onClick={() => { setIsCreateModalOpen(true); setIsMoreOpen(false); }}
+                className="w-full flex items-center gap-4 p-3 rounded-2xl transition-all duration-200 group cursor-pointer text-premium-muted hover:bg-premium-gray/30 hover:text-premium-text"
+              >
+                <PlusSquare className="w-5 h-5 shrink-0 group-hover:scale-[1.03] transition-transform text-accent-cyan" />
+                <span className="text-sm font-semibold hidden xl:inline">Create</span>
+              </button>
+              <button 
                 onClick={() => { navigate("/profile"); setIsMoreOpen(false); }}
                 className={`w-full flex items-center gap-4 p-3 rounded-2xl transition-all duration-200 group cursor-pointer ${activeView === "profile" ? "bg-premium-gray text-premium-text" : "text-premium-muted hover:bg-premium-gray/30 hover:text-premium-text"}`}
               >
@@ -565,9 +587,6 @@ export default function HomePage({ onLogout, token }) {
                             <span className="text-[9px] text-premium-muted font-medium">Suggested post</span>
                           </div>
                         </div>
-                        <button className="text-premium-muted hover:text-premium-text transition-colors cursor-pointer">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </button>
                       </div>
 
                       {/* Content Media */}
@@ -756,7 +775,7 @@ export default function HomePage({ onLogout, token }) {
             </main>
           ) : activeView === "profile" ? (
             <div className="w-full mt-12 md:mt-0">
-              <ProfilePage posts={posts} token={token} />
+              <ProfilePage posts={posts} token={token} onPostDeleted={handlePostDeleted} />
             </div>
           ) : activeView === "search" ? (
             <div className="w-full mt-12 md:mt-0">
@@ -842,12 +861,28 @@ export default function HomePage({ onLogout, token }) {
           <Search className="w-5 h-5" />
         </button>
         <button 
+          onClick={() => setIsCreateModalOpen(true)}
+          className="cursor-pointer text-premium-muted hover:text-accent-cyan transition-colors"
+          title="Create post"
+        >
+          <PlusSquare className="w-5 h-5 text-accent-cyan" />
+        </button>
+        <button 
           onClick={() => navigate("/profile")}
           className={`cursor-pointer ${activeView === "profile" ? "text-accent-cyan" : "text-premium-muted"}`}
         >
           <User className="w-5 h-5" />
         </button>
       </nav>
+
+      {/* Create Post Modal */}
+      <CreatePostModal
+        token={token}
+        user={me}
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onPostCreated={handlePostCreated}
+      />
 
     </div>
   );

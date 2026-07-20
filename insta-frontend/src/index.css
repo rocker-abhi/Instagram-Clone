@@ -47,3 +47,97 @@
     background: var(--color-premium-gray);
   }
 }
+
+@keyframes backdropSmoothFade {
+  0% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    backdrop-filter: blur(16px);
+  }
+}
+
+@keyframes postModalSmoothEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.85) translateY(32px);
+    filter: blur(14px);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.015) translateY(-3px);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0px);
+  }
+}
+
+@keyframes deletePopupSmoothEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.78) translateY(36px);
+    filter: blur(16px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.035) translateY(-4px);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0px);
+  }
+}
+
+.animate-backdrop-smooth {
+  animation: backdropSmoothFade 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-post-modal-smooth {
+  animation: postModalSmoothEnter 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  will-change: transform, opacity, filter;
+}
+
+.animate-delete-popup-smooth {
+  animation: deletePopupSmoothEnter 0.52s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  will-change: transform, opacity, filter;
+}
+
+@keyframes backdropSmoothFadeOut {
+  0% {
+    opacity: 1;
+    backdrop-filter: blur(16px);
+  }
+  100% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+}
+
+@keyframes modalSmoothExit {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.86) translateY(24px);
+    filter: blur(12px);
+  }
+}
+
+.animate-backdrop-exit {
+  animation: backdropSmoothFadeOut 0.25s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.animate-modal-exit {
+  animation: modalSmoothExit 0.25s cubic-bezier(0.4, 0, 1, 1) forwards;
+  will-change: transform, opacity, filter;
+}

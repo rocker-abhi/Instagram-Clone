@@ -1,0 +1,1 @@
+POST_MEDIA_BUCKET = "posts"

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -7,6 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.database import db
+from app.core.storage import StorageFactory
+from app.storage.buckets import POST_MEDIA_BUCKET
+from app.core.global_exception_handler import register_exception_handlers
+from app.core.request_handler import register_middleware
+from app.routes import api_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,6 +29,17 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.critical("Database connection failed: %s", str(e))
         raise SystemExit("Fatal: Database is unreachable.") from e
+
+    # Verify MinIO Storage Connection & Ensure Bucket Exists
+    try:
+        storage = StorageFactory.get_storage()
+        # Verify connectivity by checking bucket existence or listing buckets
+        await asyncio.to_thread(storage._client.list_buckets)
+        await storage.ensure_bucket(POST_MEDIA_BUCKET)
+        logger.info("MinIO storage connection verified successfully. Bucket '%s' ready.", POST_MEDIA_BUCKET)
+    except Exception as e:
+        logger.critical("MinIO storage connection failed: %s", str(e))
+        raise SystemExit("Fatal: MinIO storage is unreachable.") from e
 
     yield
     logger.info("Shutting down Post Service...")
@@ -43,6 +60,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register request middleware, exception handlers, and API router
+register_middleware(app)
+register_exception_handlers(app)
+app.include_router(api_router)
 
 
 @app.get("/")
