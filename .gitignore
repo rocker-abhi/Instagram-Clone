@@ -98,6 +98,7 @@ Authentication-Server/.env
 User-Service/.env
 chat-server/.env
 Notification-Server/.env
+Post-Server/.env
 
 # ── JWT / Cryptographic Keys ──────────────────────────────────
 shared/keys/jwt_private_key.pem
