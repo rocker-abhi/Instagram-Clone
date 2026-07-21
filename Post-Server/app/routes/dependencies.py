@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import db
 from app.utils.jwt import decode_token
 from app.service.post_service import PostService
+from app.service.story_service import StoryService
 from app.exceptions.business_exception import (
     JWTException,
     InvalidTokenException,
@@ -67,3 +68,10 @@ async def get_post_service(session: AsyncSession = Depends(get_db)) -> PostServi
     Dependency injecting PostService instance bound to current session.
     """
     return PostService(session)
+
+
+async def get_story_service(session: AsyncSession = Depends(get_db)) -> StoryService:
+    """
+    Dependency injecting StoryService instance bound to current session.
+    """
+    return StoryService(session)

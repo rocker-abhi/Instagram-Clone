@@ -3,6 +3,7 @@ from app.models.post import Post
 from app.models.post_media import PostMedia
 from app.models.post_like import PostLike
 from app.models.post_comment import PostComment
+from app.models.story import Story
 
 __all__ = [
     "Base",
@@ -10,4 +11,5 @@ __all__ = [
     "PostMedia",
     "PostLike",
     "PostComment",
+    "Story",
 ]

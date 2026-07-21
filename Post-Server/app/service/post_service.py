@@ -245,11 +245,45 @@ class PostService:
             raise PostNotFoundException(f"Post with ID '{post_id}' not found.")
         return await self._enrich_post_with_urls(post, current_user_id=current_user_id)
 
-    async def list_feed_posts(self, limit: int = 20, offset: int = 0, current_user_id: uuid.UUID | None = None) -> list[PostResponse]:
+    async def list_feed_posts(
+        self,
+        limit: int = 20,
+        offset: int = 0,
+        current_user_id: uuid.UUID | None = None,
+        auth_token: str | None = None,
+    ) -> list[PostResponse]:
         """
-        List public feed posts with presigned GET URLs for direct media rendering.
+        List feed posts with presigned GET URLs for direct media rendering.
+        Includes public posts AND posts created by followed friends.
         """
-        posts = await self.repository.list_feed_posts(limit=limit, offset=offset)
+        followed_ids: list[uuid.UUID] = [current_user_id] if current_user_id else []
+
+        if current_user_id and auth_token:
+            try:
+                import httpx
+                async with httpx.AsyncClient(timeout=3.0) as client:
+                    resp = await client.get(
+                        f"http://localhost:8002/user-profile/{current_user_id}/following",
+                        headers={"Authorization": f"Bearer {auth_token}"},
+                    )
+                    if resp.status_code == 200:
+                        body = resp.json()
+                        if body.get("success") and body.get("data"):
+                            for profile in body["data"]:
+                                uid_str = profile.get("id") or profile.get("user_id")
+                                if uid_str:
+                                    try:
+                                        followed_ids.append(uuid.UUID(uid_str))
+                                    except ValueError:
+                                        pass
+            except Exception as err:
+                logger.warning("Could not fetch following list for feed posts: %s", err)
+
+        posts = await self.repository.list_feed_posts(
+            followed_user_ids=followed_ids if followed_ids else None,
+            limit=limit,
+            offset=offset,
+        )
         enriched: list[PostResponse] = []
         for post in posts:
             enriched.append(await self._enrich_post_with_urls(post, current_user_id=current_user_id))

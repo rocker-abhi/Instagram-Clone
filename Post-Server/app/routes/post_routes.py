@@ -1,6 +1,6 @@
 import uuid
 import logging
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, Request
 
 from app.routes.dependencies import get_current_user_id, get_post_service
 from app.service.post_service import PostService
@@ -131,15 +131,24 @@ async def create_post(
     summary="Get public feed posts"
 )
 async def list_feed_posts(
+    req: Request,
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     current_user_id: uuid.UUID = Depends(get_current_user_id),
     post_service: PostService = Depends(get_post_service),
 ):
     """
-    Fetch public posts for feed display. Every media object_key is resolved into a pre-signed GET URL.
+    Fetch posts for feed display (includes public posts + followed friends posts). Every media object_key is resolved into a pre-signed GET URL.
     """
-    feed = await post_service.list_feed_posts(limit=limit, offset=offset, current_user_id=current_user_id)
+    auth_header = req.headers.get("Authorization", "")
+    token = auth_header.split()[1] if len(auth_header.split()) == 2 else None
+
+    feed = await post_service.list_feed_posts(
+        limit=limit,
+        offset=offset,
+        current_user_id=current_user_id,
+        auth_token=token,
+    )
     return APIResponse(
         success=True,
         message="Feed posts retrieved successfully.",

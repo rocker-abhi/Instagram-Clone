@@ -60,6 +60,28 @@ class MinioStorage:
         except Exception as policy_err:
             logger.warning("Could not set bucket policy on %s: %s", bucket_name, policy_err)
 
+        # Configure 1-day auto-expiration lifecycle rule for temporary buckets
+        if "temp" in bucket_name:
+            try:
+                from minio.lifecycleconfig import LifecycleConfig, Rule, Expiration
+                config = LifecycleConfig(
+                    [
+                        Rule(
+                            status="Enabled",
+                            rule_id="expire-1-day-rule",
+                            expiration=Expiration(days=1),
+                        ),
+                    ]
+                )
+                await asyncio.to_thread(
+                    self._client.set_bucket_lifecycle,
+                    bucket_name,
+                    config,
+                )
+                logger.info("Configured 1-day auto-expiration lifecycle rule for bucket: %s", bucket_name)
+            except Exception as lifecycle_err:
+                logger.warning("Could not set lifecycle rule on %s: %s", bucket_name, lifecycle_err)
+
     async def upload(
         self,
         request: UploadRequest,

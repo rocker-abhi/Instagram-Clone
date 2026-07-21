@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Home, Search, MessageCircle, Heart, PlusSquare, User, LogOut,
-  Bookmark, Send, MoreHorizontal, Smile, Settings, UserCheck
+  Bookmark, Send, MoreHorizontal, Smile, Settings, UserCheck, Plus, Trash2
 } from "lucide-react";
 import ProfilePage from "../profile/ProfilePage";
 import SearchPage from "../search/SearchPage";
@@ -11,6 +11,7 @@ import RequestsPage from "../requests/RequestsPage";
 import NotificationsPage from "../notifications/NotificationsPage";
 import ChatsPage from "../chats/ChatsPage";
 import CreatePostModal from "../post/CreatePostModal";
+import CreateStoryModal from "../post/CreateStoryModal";
 import HLSVideoPlayer from "../post/HLSVideoPlayer";
 import { USER_API_BASE_URL, POST_API_BASE_URL, CHAT_WS_URL } from "../../config";
 import { gsap } from "gsap";
@@ -148,54 +149,125 @@ export default function HomePage({ onLogout, token }) {
     }
   }, [activeView]);
 
-  const [posts, setPosts] = useState([]);
+  const BATCH_SIZE = 10;
+  const MAX_WINDOW_SIZE = 20;
 
+  const [posts, setPosts] = useState([]);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const observerTargetRef = useRef(null);
+
+  const fetchFeedPostsBatch = async (currentOffset = 0) => {
+    if (!token || isFetchingMore) return;
+    setIsFetchingMore(true);
+
+    try {
+      const res = await fetch(`${POST_API_BASE_URL}/posts?limit=${BATCH_SIZE}&offset=${currentOffset}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          const newPostsRaw = json.data;
+
+          if (newPostsRaw.length < BATCH_SIZE) {
+            setHasMore(false);
+          }
+
+          const mapped = newPostsRaw.map((p) => ({
+            id: p.id,
+            username: me.username || "user",
+            userAvatar: me.profile_picture_url || "",
+            image: p.media?.[0]?.url || "",
+            hls_url: p.media?.[0]?.hls_url || null,
+            mediaType: p.media?.[0]?.media_type || "IMAGE",
+            images: p.media?.map((m) => m.url) || [],
+            caption: p.caption || "",
+            location: p.location || "",
+            visibility: p.visibility,
+            commentsEnabled: p.comments_enabled,
+            likes: p.likes || 0,
+            hasLiked: p.hasLiked || false,
+            hasSaved: false,
+            comments: p.comments || [],
+            time: p.created_at ? new Date(p.created_at).toLocaleDateString() : "Just now"
+          }));
+
+          setPosts((prevPosts) => {
+            if (currentOffset === 0) return mapped;
+            const combined = [...prevPosts, ...mapped];
+            // Sliding Window: keep maximum 20 posts in active DOM memory
+            return combined.length > MAX_WINDOW_SIZE
+              ? combined.slice(combined.length - MAX_WINDOW_SIZE)
+              : combined;
+          });
+
+          setOffset(currentOffset + newPostsRaw.length);
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to fetch feed posts from Post-Server:", err);
+    } finally {
+      setIsFetchingMore(false);
+    }
+  };
+
+  // Initial fetch on mount or auth change
   useEffect(() => {
     if (!token) return;
-    const fetchFeedPosts = async () => {
-      try {
-        const res = await fetch(`${POST_API_BASE_URL}/posts`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json.success && json.data) {
-            const mapped = json.data.map((p) => ({
-              id: p.id,
-              username: me.username || "user",
-              userAvatar: me.profile_picture_url || "",
-              image: p.media?.[0]?.url || "",
-              hls_url: p.media?.[0]?.hls_url || null,
-              mediaType: p.media?.[0]?.media_type || "IMAGE",
-              images: p.media?.map((m) => m.url) || [],
-              caption: p.caption || "",
-              location: p.location || "",
-              visibility: p.visibility,
-              commentsEnabled: p.comments_enabled,
-              likes: p.likes || 0,
-              hasLiked: p.hasLiked || false,
-              hasSaved: false,
-              comments: p.comments || [],
-              time: p.created_at ? new Date(p.created_at).toLocaleDateString() : "Just now"
-            }));
-            setPosts(mapped);
-          }
-        }
-      } catch (err) {
-        console.warn("Failed to fetch feed posts from Post-Server:", err);
-      }
-    };
-    fetchFeedPosts();
+    setOffset(0);
+    setHasMore(true);
+    fetchFeedPostsBatch(0);
   }, [token, me]);
 
-  const [stories] = useState([
-    { id: 1, username: "your_story", isUser: true },
-    { id: 2, username: "travel_diaries", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80" },
-    { id: 3, username: "chef_master", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80" },
-    { id: 4, username: "tech_vision", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80" },
-    { id: 5, username: "fitness_guru", avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=150&h=150&q=80" },
-    { id: 6, username: "art_gallery", avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&h=150&q=80" }
-  ]);
+  // Infinite scroll IntersectionObserver listener
+  useEffect(() => {
+    const target = observerTargetRef.current;
+    if (!target || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isFetchingMore && hasMore) {
+          fetchFeedPostsBatch(offset);
+        }
+      },
+      { threshold: 0.2 }
+    );
+
+    observer.observe(target);
+    return () => {
+      if (target) observer.unobserve(target);
+    };
+  }, [observerTargetRef, offset, isFetchingMore, hasMore]);
+
+  const [storiesFeed, setStoriesFeed] = useState([]);
+  const [isCreateStoryModalOpen, setIsCreateStoryModalOpen] = useState(false);
+  const [activeStoryGroup, setActiveStoryGroup] = useState(null);
+  const [activeStoryIndex, setActiveStoryIndex] = useState(0);
+  const [storyProgress, setStoryProgress] = useState(0);
+
+  const fetchStoriesFeed = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${POST_API_BASE_URL}/stories/feed`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          setStoriesFeed(json.data);
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to fetch stories feed:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchStoriesFeed();
+  }, [token]);
 
   const [suggestions, setSuggestions] = useState([
     { id: 1, username: "pixel_artist", relation: "Suggested for you", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80", followed: false },
@@ -204,8 +276,6 @@ export default function HomePage({ onLogout, token }) {
   ]);
 
   const [commentInputs, setCommentInputs] = useState({});
-  const [activeStory, setActiveStory] = useState(null);
-  const [storyProgress, setStoryProgress] = useState(0);
   const [likeAnimationId, setLikeAnimationId] = useState(null);
 
   const incrementUnread = (convId) => {
@@ -315,23 +385,50 @@ export default function HomePage({ onLogout, token }) {
 
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
 
-  // Story progress timer
+  const handleDeleteStory = async (storyId) => {
+    if (!token || !storyId) return;
+    try {
+      const res = await fetch(`${POST_API_BASE_URL}/stories/${storyId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchStoriesFeed();
+        if (activeStoryGroup && activeStoryGroup.stories.length > 1) {
+          const updatedStories = activeStoryGroup.stories.filter((s) => s.id !== storyId);
+          setActiveStoryGroup({ ...activeStoryGroup, stories: updatedStories });
+          setActiveStoryIndex((idx) => (idx >= updatedStories.length ? Math.max(0, updatedStories.length - 1) : idx));
+        } else {
+          setActiveStoryGroup(null);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to delete story:", err);
+    }
+  };
+
+  // Story progress timer for activeStoryGroup
   useEffect(() => {
-    if (!activeStory) return;
+    if (!activeStoryGroup || !activeStoryGroup.stories || activeStoryGroup.stories.length === 0) return;
     setStoryProgress(0);
     const interval = setInterval(() => {
       setStoryProgress((prev) => {
         if (prev >= 100) {
-          clearInterval(interval);
-          setActiveStory(null);
-          return 0;
+          if (activeStoryIndex < activeStoryGroup.stories.length - 1) {
+            setActiveStoryIndex((idx) => idx + 1);
+            return 0;
+          } else {
+            clearInterval(interval);
+            setActiveStoryGroup(null);
+            return 0;
+          }
         }
         return prev + 2.5;
       });
     }, 100);
 
     return () => clearInterval(interval);
-  }, [activeStory]);
+  }, [activeStoryGroup, activeStoryIndex]);
 
   const handleLike = async (postId, e) => {
     if (!token) return;
@@ -584,34 +681,80 @@ export default function HomePage({ onLogout, token }) {
 
                 {/* Stories Strip */}
                 <div className="bg-premium-card border border-premium-border rounded-3xl py-5 px-5 flex gap-4 overflow-x-auto scrollbar-none">
-                  {stories.map((story) => (
-                    <button
-                      key={story.id}
-                      onClick={() => setActiveStory(story.isUser ? { ...story, avatar: me.profile_picture_url, username: me.username } : story)}
-                      className="flex flex-col items-center flex-shrink-0 focus:outline-none cursor-pointer group"
-                    >
-                      <div className="w-[62px] h-[62px] rounded-full p-[1.5px] bg-gradient-to-tr from-accent-cyan via-accent-blue to-accent-coral transition-transform duration-200 group-hover:scale-[1.03]">
-                        <div className="w-full h-full bg-premium-card rounded-full p-[1.5px]">
-                          {story.isUser ? (
-                            <AvatarImg
-                              src={me.profile_picture_url}
-                              alt={me.username || "you"}
-                              className="w-full h-full object-cover rounded-full"
-                            />
-                          ) : (
-                            <img
-                              src={story.avatar}
-                              alt={story.username}
-                              className="w-full h-full object-cover rounded-full"
-                            />
-                          )}
+                  {/* Your Story Button */}
+                  {(() => {
+                    const myStoryGroup = storiesFeed.find((g) => g.is_user);
+                    const hasMyStory = myStoryGroup && myStoryGroup.stories.length > 0;
+                    return (
+                      <div className="flex flex-col items-center flex-shrink-0 group">
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (hasMyStory) {
+                                setActiveStoryGroup(myStoryGroup);
+                                setActiveStoryIndex(0);
+                              } else {
+                                setIsCreateStoryModalOpen(true);
+                              }
+                            }}
+                            className={`w-[62px] h-[62px] rounded-full p-[1.5px] cursor-pointer transition-transform group-hover:scale-[1.03] ${hasMyStory ? "bg-gradient-to-tr from-accent-cyan via-accent-blue to-accent-coral" : "bg-premium-border"}`}
+                          >
+                            <div className="w-full h-full bg-premium-card rounded-full p-[1.5px]">
+                              <AvatarImg
+                                src={me.profile_picture_url}
+                                alt={me.username || "you"}
+                                className="w-full h-full object-cover rounded-full"
+                              />
+                            </div>
+                          </button>
+
+                          {/* Plus Badge */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsCreateStoryModalOpen(true);
+                            }}
+                            className="absolute bottom-0 right-0 w-5 h-5 bg-accent-cyan hover:bg-accent-cyan/90 text-white rounded-full flex items-center justify-center border-2 border-premium-card shadow-sm transition-transform hover:scale-110 cursor-pointer"
+                            title="Add Story"
+                          >
+                            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                          </button>
                         </div>
+                        <span className="text-[10px] text-premium-muted font-semibold mt-2 truncate max-w-[60px]">
+                          Your Story
+                        </span>
                       </div>
-                      <span className="text-[10px] text-premium-muted font-semibold mt-2 truncate max-w-[60px]">
-                        {story.isUser ? "Your Story" : story.username}
-                      </span>
-                    </button>
-                  ))}
+                    );
+                  })()}
+
+                  {/* Followed Users Stories */}
+                  {storiesFeed
+                    .filter((g) => !g.is_user && g.stories.length > 0)
+                    .map((group) => (
+                      <button
+                        key={group.user_id}
+                        onClick={() => {
+                          setActiveStoryGroup(group);
+                          setActiveStoryIndex(0);
+                        }}
+                        className="flex flex-col items-center flex-shrink-0 focus:outline-none cursor-pointer group"
+                      >
+                        <div className="w-[62px] h-[62px] rounded-full p-[1.5px] bg-gradient-to-tr from-accent-cyan via-accent-blue to-accent-coral transition-transform duration-200 group-hover:scale-[1.03]">
+                          <div className="w-full h-full bg-premium-card rounded-full p-[1.5px]">
+                            <AvatarImg
+                              src={group.user_avatar}
+                              alt={group.username}
+                              className="w-full h-full object-cover rounded-full"
+                            />
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-premium-muted font-semibold mt-2 truncate max-w-[65px]">
+                          {group.username}
+                        </span>
+                      </button>
+                    ))}
                 </div>
 
                 {/* Feed Items */}
@@ -761,6 +904,23 @@ export default function HomePage({ onLogout, token }) {
 
                     </article>
                   ))}
+
+                  {/* IntersectionObserver Sentinel & Feed End Indicators */}
+                  <div ref={observerTargetRef} className="py-6 flex flex-col items-center justify-center gap-2 min-h-[60px]">
+                    {isFetchingMore && (
+                      <div className="flex items-center gap-2 text-xs text-premium-muted font-medium animate-pulse">
+                        <div className="w-4 h-4 rounded-full border-2 border-accent-cyan border-t-transparent animate-spin" />
+                        <span>Fetching more posts...</span>
+                      </div>
+                    )}
+
+                    {!hasMore && (
+                      <div className="text-center py-4 space-y-1">
+                        <p className="text-xs font-bold text-premium-text font-display">You're all caught up! ✨</p>
+                        <p className="text-[10px] text-premium-muted">You've seen all the latest posts for now.</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </section>
 
@@ -883,40 +1043,79 @@ export default function HomePage({ onLogout, token }) {
       </div>
 
       {/* Story Modal Viewer */}
-      {activeStory && (
+      {activeStoryGroup && activeStoryGroup.stories?.[activeStoryIndex] && (
         <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center animate-fade-in">
-          {/* Progress bar */}
-          <div className="absolute top-4 left-4 right-4 h-1 bg-white/20 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-white transition-all duration-100 ease-linear"
-              style={{ width: `${storyProgress}%` }}
-            />
+          {/* Progress bars for story group */}
+          <div className="absolute top-4 left-4 right-4 flex gap-1.5 z-20">
+            {activeStoryGroup.stories.map((st, idx) => (
+              <div key={st.id} className="flex-1 h-1 bg-white/30 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-white transition-all duration-100 ease-linear"
+                  style={{
+                    width: idx < activeStoryIndex ? "100%" : idx === activeStoryIndex ? `${storyProgress}%` : "0%"
+                  }}
+                />
+              </div>
+            ))}
           </div>
 
           <button
-            onClick={() => setActiveStory(null)}
-            className="absolute top-8 right-8 text-white/70 hover:text-white font-bold text-lg cursor-pointer"
+            onClick={() => setActiveStoryGroup(null)}
+            className="absolute top-8 right-8 text-white/80 hover:text-white font-bold text-xl cursor-pointer z-30"
           >
             ✕
           </button>
 
           <div className="max-w-md w-full aspect-[9/16] relative flex items-center justify-center p-4">
-            <div className="absolute top-4 left-4 flex items-center gap-3 text-white">
-              <img
-                src={activeStory.avatar}
-                alt={activeStory.username}
-                className="w-8 h-8 rounded-full border border-white/40 object-cover"
-              />
-              <span className="font-bold text-sm">{activeStory.isUser ? "Your Story" : activeStory.username}</span>
+            {/* Header info */}
+            <div className="absolute top-8 left-6 right-6 flex items-center justify-between text-white z-20">
+              <div className="flex items-center gap-3">
+                <AvatarImg
+                  src={activeStoryGroup.user_avatar}
+                  alt={activeStoryGroup.username}
+                  className="w-8 h-8 rounded-full border border-white/40 object-cover"
+                />
+                <span className="font-bold text-sm drop-shadow-md">
+                  {activeStoryGroup.is_user ? "Your Story" : activeStoryGroup.username}
+                </span>
+              </div>
+
+              {activeStoryGroup.is_user && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteStory(activeStoryGroup.stories[activeStoryIndex]?.id)}
+                  className="p-2 rounded-full bg-black/40 hover:bg-rose-600/80 text-white/90 hover:text-white transition-all backdrop-blur-md cursor-pointer border border-white/20"
+                  title="Delete Story"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
             </div>
+
+            {/* Image display */}
             <img
-              src={activeStory.avatar}
-              alt="Story"
+              src={activeStoryGroup.stories[activeStoryIndex].media_url}
+              alt="Story asset"
               className="w-full h-full object-contain rounded-2xl shadow-2xl"
             />
+
+            {/* Story Caption */}
+            {activeStoryGroup.stories[activeStoryIndex].caption && (
+              <div className="absolute bottom-8 left-6 right-6 p-3 bg-black/60 backdrop-blur-md rounded-2xl border border-white/20 text-white text-xs font-semibold text-center drop-shadow-lg z-20">
+                {activeStoryGroup.stories[activeStoryIndex].caption}
+              </div>
+            )}
           </div>
         </div>
       )}
+
+      {/* Create Story Modal */}
+      <CreateStoryModal
+        isOpen={isCreateStoryModalOpen}
+        onClose={() => setIsCreateStoryModalOpen(false)}
+        token={token}
+        onStoryCreated={() => fetchStoriesFeed()}
+      />
 
       {/* Mobile Footer Bar */}
       <nav className="fixed bottom-0 left-0 right-0 h-14 bg-premium-card border-t border-premium-border flex md:hidden items-center justify-around z-30 shadow-lg">

@@ -1,7 +1,7 @@
 import uuid
 import logging
 from datetime import datetime, timezone
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -62,16 +62,25 @@ class PostRepository:
             logger.exception("Failed to fetch post by id: %s", post_id)
             raise InfrastructureException(service="Database", message=f"Failed to fetch post: {str(e)}")
 
-    async def list_feed_posts(self, limit: int = 20, offset: int = 0) -> list[Post]:
+    async def list_feed_posts(
+        self,
+        followed_user_ids: list[uuid.UUID] | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[Post]:
         """
-        Fetch public posts for feed display ordered by creation date descending.
+        Fetch public posts and posts from followed users for feed display ordered by creation date descending.
         """
         try:
+            conditions = [Post.visibility == PostVisibility.PUBLIC]
+            if followed_user_ids:
+                conditions.append(Post.user_id.in_(followed_user_ids))
+
             stmt = (
                 select(Post)
                 .options(selectinload(Post.media), selectinload(Post.likes), selectinload(Post.comments))
-                .where(Post.visibility == PostVisibility.PUBLIC)
                 .where(Post.is_deleted.isnot(True))
+                .where(or_(*conditions))
                 .order_by(Post.created_at.desc())
                 .limit(limit)
                 .offset(offset)
