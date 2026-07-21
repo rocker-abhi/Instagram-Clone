@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { 
-  Home, Search, MessageCircle, Heart, PlusSquare, User, LogOut, 
+import {
+  Home, Search, MessageCircle, Heart, PlusSquare, User, LogOut,
   Bookmark, Send, MoreHorizontal, Smile, Settings, UserCheck
 } from "lucide-react";
 import ProfilePage from "../profile/ProfilePage";
@@ -15,15 +15,15 @@ import { USER_API_BASE_URL, POST_API_BASE_URL, CHAT_WS_URL } from "../../config"
 import { gsap } from "gsap";
 
 const LogoIcon = (props) => (
-  <svg 
-    viewBox="0 0 24 24" 
-    width="24" 
-    height="24" 
-    stroke="currentColor" 
-    strokeWidth="2.5" 
-    fill="none" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
+  <svg
+    viewBox="0 0 24 24"
+    width="24"
+    height="24"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
     className="text-accent-cyan"
     {...props}
   >
@@ -45,7 +45,7 @@ const AvatarImg = ({ src, alt, className }) =>
   );
 
 export default function HomePage({ onLogout, token }) {
-  const [me, setMe] = useState({ username: "", display_name: "", profile_picture_url: "" });
+  const [me, setMe] = useState({ user_id: "", username: "", display_name: "", profile_picture_url: "" });
   const [meLoading, setMeLoading] = useState(!!token);
 
   const sidebarRef = useRef(null);
@@ -80,6 +80,12 @@ export default function HomePage({ onLogout, token }) {
 
   const handlePostDeleted = (deletedPostId) => {
     setPosts((prev) => prev.filter((p) => p.id !== deletedPostId));
+  };
+
+  const handlePostUpdated = (updatedPost) => {
+    setPosts((prev) =>
+      prev.map((post) => (post.id === updatedPost.id ? { ...post, ...updatedPost } : post))
+    );
   };
 
   useEffect(() => {
@@ -163,10 +169,10 @@ export default function HomePage({ onLogout, token }) {
               location: p.location || "",
               visibility: p.visibility,
               commentsEnabled: p.comments_enabled,
-              likes: 0,
-              hasLiked: false,
+              likes: p.likes || 0,
+              hasLiked: p.hasLiked || false,
               hasSaved: false,
-              comments: [],
+              comments: p.comments || [],
               time: p.created_at ? new Date(p.created_at).toLocaleDateString() : "Just now"
             }));
             setPosts(mapped);
@@ -270,7 +276,7 @@ export default function HomePage({ onLogout, token }) {
       }
     };
 
-    ws.onerror = () => {};
+    ws.onerror = () => { };
   };
 
   useEffect(() => {
@@ -324,7 +330,8 @@ export default function HomePage({ onLogout, token }) {
     return () => clearInterval(interval);
   }, [activeStory]);
 
-  const handleLike = (postId, e) => {
+  const handleLike = async (postId, e) => {
+    if (!token) return;
     setPosts((prev) =>
       prev.map((post) => {
         if (post.id === postId) {
@@ -345,9 +352,21 @@ export default function HomePage({ onLogout, token }) {
         return post;
       })
     );
+
+    try {
+      await fetch(`${POST_API_BASE_URL}/posts/${postId}/like`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+    } catch (err) {
+      console.error("Error calling like endpoint:", err);
+    }
   };
 
-  const handleDoubleTap = (postId) => {
+  const handleDoubleTap = async (postId) => {
+    if (!token) return;
     setPosts((prev) =>
       prev.map((post) => {
         if (post.id === postId) {
@@ -362,7 +381,19 @@ export default function HomePage({ onLogout, token }) {
     setTimeout(() => {
       setLikeAnimationId(null);
     }, 1000);
+
+    try {
+      await fetch(`${POST_API_BASE_URL}/posts/${postId}/like`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+    } catch (err) {
+      console.error("Error calling double tap like endpoint:", err);
+    }
   };
+
 
   const handleSave = (postId, e) => {
     if (e?.currentTarget) {
@@ -382,22 +413,40 @@ export default function HomePage({ onLogout, token }) {
     );
   };
 
-  const handleCommentSubmit = (e, postId) => {
+  const handleCommentSubmit = async (e, postId) => {
     e.preventDefault();
     const text = commentInputs[postId]?.trim();
     if (!text) return;
+    if (!token) return;
 
-    setPosts((prev) =>
-      prev.map((post) => {
-        if (post.id === postId) {
-          return {
-            ...post,
-            comments: [...post.comments, { username: me.username || "current_user", text }]
-          };
+    try {
+      const res = await fetch(`${POST_API_BASE_URL}/posts/${postId}/comments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ content: text })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setPosts((prev) =>
+            prev.map((post) => {
+              if (post.id === postId) {
+                return {
+                  ...post,
+                  comments: [...post.comments, { username: me.username || "current_user", text }]
+                };
+              }
+              return post;
+            })
+          );
         }
-        return post;
-      })
-    );
+      }
+    } catch (err) {
+      console.error("Error posting comment:", err);
+    }
 
     setCommentInputs((prev) => ({ ...prev, [postId]: "" }));
   };
@@ -416,9 +465,9 @@ export default function HomePage({ onLogout, token }) {
   return (
     <div className="min-h-screen bg-premium-bg text-premium-text font-sans flex w-full justify-center">
       <div className="flex w-full max-w-[1440px] relative min-h-screen">
-        
+
         {/* Left Sidebar - Premium Responsive Navigation */}
-        <aside 
+        <aside
           ref={sidebarRef}
           className="fixed left-0 top-0 bottom-0 h-screen border-r border-premium-border bg-premium-card flex flex-col justify-between py-8 px-4 z-30 transition-all duration-300 w-[80px] xl:w-[260px] hidden md:flex shrink-0"
         >
@@ -433,21 +482,21 @@ export default function HomePage({ onLogout, token }) {
             </div>
 
             <nav className="space-y-1">
-              <button 
+              <button
                 onClick={() => { navigate("/"); setIsMoreOpen(false); }}
                 className={`w-full flex items-center gap-4 p-3 rounded-2xl transition-all duration-200 group cursor-pointer ${activeView === "feed" ? "bg-premium-gray text-premium-text" : "text-premium-muted hover:bg-premium-gray/30 hover:text-premium-text"}`}
               >
                 <Home className="w-5 h-5 shrink-0 group-hover:scale-[1.03] transition-transform" />
                 <span className="text-sm font-semibold hidden xl:inline">Home</span>
               </button>
-              <button 
+              <button
                 onClick={() => { navigate("/search"); setIsMoreOpen(false); }}
                 className={`w-full flex items-center gap-4 p-3 rounded-2xl transition-all duration-200 group cursor-pointer ${activeView === "search" ? "bg-premium-gray text-premium-text" : "text-premium-muted hover:bg-premium-gray/30 hover:text-premium-text"}`}
               >
                 <Search className="w-5 h-5 shrink-0 group-hover:scale-[1.03] transition-transform" />
                 <span className="text-sm font-semibold hidden xl:inline">Search</span>
               </button>
-              <button 
+              <button
                 onClick={() => { navigate("/chats"); setIsMoreOpen(false); }}
                 className={`w-full flex items-center gap-4 p-3 rounded-2xl transition-all duration-200 group relative cursor-pointer ${activeView === "chats" ? "bg-premium-gray text-premium-text" : "text-premium-muted hover:bg-premium-gray/30 hover:text-premium-text"}`}
               >
@@ -461,21 +510,21 @@ export default function HomePage({ onLogout, token }) {
                 </div>
                 <span className="text-sm font-semibold hidden xl:inline">Messages</span>
               </button>
-              <button 
+              <button
                 onClick={() => { navigate("/notifications"); setIsMoreOpen(false); }}
                 className={`w-full flex items-center gap-4 p-3 rounded-2xl transition-all duration-200 group cursor-pointer ${activeView === "notifications" ? "bg-premium-gray text-premium-text" : "text-premium-muted hover:bg-premium-gray/30 hover:text-premium-text"}`}
               >
                 <Heart className="w-5 h-5 shrink-0 group-hover:scale-[1.03] transition-transform" />
                 <span className="text-sm font-semibold hidden xl:inline">Notifications</span>
               </button>
-              <button 
+              <button
                 onClick={() => { setIsCreateModalOpen(true); setIsMoreOpen(false); }}
                 className="w-full flex items-center gap-4 p-3 rounded-2xl transition-all duration-200 group cursor-pointer text-premium-muted hover:bg-premium-gray/30 hover:text-premium-text"
               >
                 <PlusSquare className="w-5 h-5 shrink-0 group-hover:scale-[1.03] transition-transform text-accent-cyan" />
                 <span className="text-sm font-semibold hidden xl:inline">Create</span>
               </button>
-              <button 
+              <button
                 onClick={() => { navigate("/profile"); setIsMoreOpen(false); }}
                 className={`w-full flex items-center gap-4 p-3 rounded-2xl transition-all duration-200 group cursor-pointer ${activeView === "profile" ? "bg-premium-gray text-premium-text" : "text-premium-muted hover:bg-premium-gray/30 hover:text-premium-text"}`}
               >
@@ -486,14 +535,14 @@ export default function HomePage({ onLogout, token }) {
           </div>
 
           <div className="space-y-4">
-            <button 
+            <button
               onClick={() => navigate("/settings")}
               className={`w-full flex items-center gap-4 p-3 rounded-2xl transition-all duration-200 group cursor-pointer ${activeView === "settings" ? "bg-premium-gray text-premium-text" : "text-premium-muted hover:bg-premium-gray/30 hover:text-premium-text"}`}
             >
               <Settings className="w-5 h-5 shrink-0 group-hover:scale-[1.03] transition-transform" />
               <span className="text-sm font-semibold hidden xl:inline">Settings</span>
             </button>
-            <button 
+            <button
               onClick={onLogout}
               className="w-full flex items-center gap-4 p-3 rounded-2xl text-accent-coral hover:bg-accent-coral/10 transition-all duration-200 group cursor-pointer"
             >
@@ -526,15 +575,15 @@ export default function HomePage({ onLogout, token }) {
         <div className="flex-1 md:pl-[80px] xl:pl-[260px] flex justify-center py-6 min-h-screen w-full bg-premium-bg">
           {activeView === "feed" ? (
             <main ref={feedRef} className="flex w-full max-w-[960px] py-6 px-4 gap-8 justify-center mt-12 md:mt-0">
-              
+
               {/* Feed Column */}
               <section className="max-w-[480px] sm:max-w-[620px] w-full shrink-0 space-y-6">
-                
+
                 {/* Stories Strip */}
                 <div className="bg-premium-card border border-premium-border rounded-3xl py-5 px-5 flex gap-4 overflow-x-auto scrollbar-none">
                   {stories.map((story) => (
-                    <button 
-                      key={story.id} 
+                    <button
+                      key={story.id}
                       onClick={() => setActiveStory(story.isUser ? { ...story, avatar: me.profile_picture_url, username: me.username } : story)}
                       className="flex flex-col items-center flex-shrink-0 focus:outline-none cursor-pointer group"
                     >
@@ -547,9 +596,9 @@ export default function HomePage({ onLogout, token }) {
                               className="w-full h-full object-cover rounded-full"
                             />
                           ) : (
-                            <img 
-                              src={story.avatar} 
-                              alt={story.username} 
+                            <img
+                              src={story.avatar}
+                              alt={story.username}
                               className="w-full h-full object-cover rounded-full"
                             />
                           )}
@@ -565,18 +614,18 @@ export default function HomePage({ onLogout, token }) {
                 {/* Feed Items */}
                 <div className="space-y-6">
                   {posts.map((post) => (
-                    <article 
-                      key={post.id} 
+                    <article
+                      key={post.id}
                       className="bg-premium-card border border-premium-border rounded-3xl overflow-hidden flex flex-col transition-all duration-300"
                     >
-                      
+
                       {/* Post Header */}
                       <div className="flex items-center justify-between p-4 border-b border-premium-border/50">
                         <div className="flex items-center gap-3">
                           <div className="w-[36px] h-[36px] rounded-full p-[1.5px] bg-premium-gray">
-                            <img 
-                              src={post.userAvatar} 
-                              alt="user avatar" 
+                            <AvatarImg
+                              src={post.userAvatar}
+                              alt={post.username}
                               className="w-full h-full object-cover rounded-full"
                             />
                           </div>
@@ -590,13 +639,13 @@ export default function HomePage({ onLogout, token }) {
                       </div>
 
                       {/* Content Media */}
-                      <div 
+                      <div
                         className="relative aspect-square bg-premium-bg select-none cursor-pointer overflow-hidden flex items-center justify-center"
                         onDoubleClick={() => handleDoubleTap(post.id)}
                       >
-                        <img 
-                          src={post.image} 
-                          alt="Post media" 
+                        <img
+                          src={post.image}
+                          alt="Post media"
                           className="w-full h-full object-cover hover:scale-[1.01] transition-transform duration-700"
                         />
                         {/* Heart Pop */}
@@ -611,7 +660,7 @@ export default function HomePage({ onLogout, token }) {
                       <div className="p-5 space-y-3.5">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
-                            <button 
+                            <button
                               onClick={(e) => handleLike(post.id, e)}
                               className={`focus:outline-none cursor-pointer transition-colors ${post.hasLiked ? "text-accent-coral" : "text-premium-text hover:text-premium-muted"}`}
                             >
@@ -624,7 +673,7 @@ export default function HomePage({ onLogout, token }) {
                               <Send className="w-6 h-6" />
                             </button>
                           </div>
-                          <button 
+                          <button
                             onClick={(e) => handleSave(post.id, e)}
                             className={`focus:outline-none cursor-pointer transition-colors ${post.hasSaved ? "text-accent-cyan" : "text-premium-text hover:text-premium-muted"}`}
                           >
@@ -637,47 +686,60 @@ export default function HomePage({ onLogout, token }) {
                           {post.likes.toLocaleString()} likes
                         </div>
 
-                        {/* Caption */}
-                        <div className="text-xs text-premium-text leading-relaxed">
-                          <span className="font-bold mr-1.5 hover:text-accent-cyan cursor-pointer transition-colors">
-                            {post.username}
-                          </span>
-                          {post.caption}
-                        </div>
-
-                        {/* Comments */}
-                        {post.comments.length > 0 && (
-                          <div className="space-y-1.5 pt-1.5 border-t border-premium-border/30">
-                            {post.comments.map((comment, index) => (
-                              <div key={index} className="text-xs flex items-center justify-between">
-                                <div>
-                                  <span className="font-bold text-premium-text mr-1.5 hover:text-accent-cyan cursor-pointer transition-colors">
-                                    {comment.username}
-                                  </span>
-                                  <span className="text-premium-text/90">{comment.text}</span>
-                                </div>
-                              </div>
-                            ))}
+                        {/* Hero Highlighted Caption Block */}
+                        {post.caption && (
+                          <div className="p-3.5 rounded-2xl bg-premium-card/90 border border-premium-border/60 shadow-sm space-y-1 my-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[9px] font-bold text-accent-cyan bg-accent-cyan/10 px-2 py-0.5 rounded-full border border-accent-cyan/20 uppercase tracking-wider">
+                                Caption
+                              </span>
+                            </div>
+                            <p className="text-[13px] text-premium-text font-medium leading-relaxed select-text">
+                              {post.caption}
+                            </p>
                           </div>
                         )}
+
+                        {/* Comments */}
+                        {/* Comments */}
+                        <div className="space-y-2 pt-2 border-t border-premium-border/30">
+                          <span className="text-[10px] font-bold text-premium-muted uppercase tracking-wider">Comments</span>
+                          {post.comments && post.comments.filter(c => !c.parent_comment_id).length > 0 ? (
+                            post.comments.filter(c => !c.parent_comment_id).map((comment, index) => (
+                              <div key={index} className="text-xs flex items-center justify-between bg-premium-bg/50 border border-premium-border/30 rounded-xl px-3 py-2">
+                                <div>
+                                  <span className="font-bold text-premium-text text-[11px] mr-1.5 hover:text-accent-cyan cursor-pointer transition-colors">
+                                    {comment.username}
+                                  </span>
+                                  <span className="text-premium-text/80 text-[11px]">{comment.text}</span>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-center py-4 bg-premium-card/40 border border-premium-border/20 rounded-xl">
+                              <p className="text-[11px] font-bold text-premium-text">No comments yet.</p>
+                              <p className="text-[9px] text-premium-muted font-medium">Start the conversation.</p>
+                            </div>
+                          )}
+                        </div>
 
                         <div className="text-[9px] text-premium-muted font-bold uppercase tracking-wider pt-1">
                           {post.time} ago
                         </div>
 
                         {/* Comment Input */}
-                        <form 
+                        <form
                           onSubmit={(e) => handleCommentSubmit(e, post.id)}
                           className="flex items-center gap-3 pt-3 border-t border-premium-border/50 mt-3"
                         >
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             placeholder="Add a comment..."
                             value={commentInputs[post.id] || ""}
                             onChange={(e) => setCommentInputs({ ...commentInputs, [post.id]: e.target.value })}
                             className="flex-1 bg-transparent text-xs focus:outline-none text-premium-text placeholder-premium-muted/50"
                           />
-                          <button 
+                          <button
                             type="submit"
                             disabled={!commentInputs[post.id]?.trim()}
                             className="font-bold text-xs text-accent-cyan disabled:opacity-30 hover:text-accent-cyan/80 transition-colors focus:outline-none cursor-pointer"
@@ -694,10 +756,10 @@ export default function HomePage({ onLogout, token }) {
 
               {/* Right Sidebar Suggestions */}
               <aside ref={suggestionsRef} className="w-[320px] shrink-0 hidden lg:block sticky top-8 self-start pl-8 space-y-6">
-                
+
                 {/* User Info Profile Box */}
                 <div className="bg-premium-card border border-premium-border rounded-3xl p-5 flex items-center justify-between">
-                  <div 
+                  <div
                     onClick={() => navigate("/profile")}
                     className="flex items-center gap-3 cursor-pointer group"
                   >
@@ -742,9 +804,9 @@ export default function HomePage({ onLogout, token }) {
                     {suggestions.map((sug) => (
                       <div key={sug.id} className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <img 
-                            src={sug.avatar} 
-                            alt={sug.username} 
+                          <img
+                            src={sug.avatar}
+                            alt={sug.username}
                             className="w-8 h-8 rounded-full object-cover bg-premium-gray"
                           />
                           <div className="flex flex-col">
@@ -756,7 +818,7 @@ export default function HomePage({ onLogout, token }) {
                             </span>
                           </div>
                         </div>
-                        <button 
+                        <button
                           onClick={() => toggleFollowSuggestion(sug.id)}
                           className={`text-[10px] font-bold transition-colors focus:outline-none cursor-pointer ${sug.followed ? "text-premium-muted hover:text-premium-text" : "text-accent-cyan hover:text-accent-cyan/80"}`}
                         >
@@ -775,7 +837,7 @@ export default function HomePage({ onLogout, token }) {
             </main>
           ) : activeView === "profile" ? (
             <div className="w-full mt-12 md:mt-0">
-              <ProfilePage posts={posts} token={token} onPostDeleted={handlePostDeleted} />
+              <ProfilePage posts={posts} token={token} me={me} onPostDeleted={handlePostDeleted} onPostUpdated={handlePostUpdated} />
             </div>
           ) : activeView === "search" ? (
             <div className="w-full mt-12 md:mt-0">
@@ -791,11 +853,11 @@ export default function HomePage({ onLogout, token }) {
             </div>
           ) : activeView === "chats" ? (
             <div className="w-full mt-12 md:mt-0">
-              <ChatsPage 
-                token={token} 
-                globalSocketRef={globalSocketRef} 
-                globalWsStatus={globalWsStatus} 
-                globalRetryWs={globalRetryWs} 
+              <ChatsPage
+                token={token}
+                globalSocketRef={globalSocketRef}
+                globalWsStatus={globalWsStatus}
+                globalRetryWs={globalRetryWs}
                 unreadCounts={unreadCounts}
                 clearUnread={clearUnread}
                 incrementUnread={incrementUnread}
@@ -815,13 +877,13 @@ export default function HomePage({ onLogout, token }) {
         <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center animate-fade-in">
           {/* Progress bar */}
           <div className="absolute top-4 left-4 right-4 h-1 bg-white/20 rounded-full overflow-hidden">
-            <div 
+            <div
               className="h-full bg-white transition-all duration-100 ease-linear"
               style={{ width: `${storyProgress}%` }}
             />
           </div>
 
-          <button 
+          <button
             onClick={() => setActiveStory(null)}
             className="absolute top-8 right-8 text-white/70 hover:text-white font-bold text-lg cursor-pointer"
           >
@@ -830,16 +892,16 @@ export default function HomePage({ onLogout, token }) {
 
           <div className="max-w-md w-full aspect-[9/16] relative flex items-center justify-center p-4">
             <div className="absolute top-4 left-4 flex items-center gap-3 text-white">
-              <img 
-                src={activeStory.avatar} 
-                alt={activeStory.username} 
+              <img
+                src={activeStory.avatar}
+                alt={activeStory.username}
                 className="w-8 h-8 rounded-full border border-white/40 object-cover"
               />
               <span className="font-bold text-sm">{activeStory.isUser ? "Your Story" : activeStory.username}</span>
             </div>
-            <img 
-              src={activeStory.avatar} 
-              alt="Story" 
+            <img
+              src={activeStory.avatar}
+              alt="Story"
               className="w-full h-full object-contain rounded-2xl shadow-2xl"
             />
           </div>
@@ -848,26 +910,26 @@ export default function HomePage({ onLogout, token }) {
 
       {/* Mobile Footer Bar */}
       <nav className="fixed bottom-0 left-0 right-0 h-14 bg-premium-card border-t border-premium-border flex md:hidden items-center justify-around z-30 shadow-lg">
-        <button 
+        <button
           onClick={() => navigate("/")}
           className={`cursor-pointer ${activeView === "feed" ? "text-accent-cyan" : "text-premium-muted"}`}
         >
           <Home className="w-5 h-5" />
         </button>
-        <button 
+        <button
           onClick={() => navigate("/search")}
           className={`cursor-pointer ${activeView === "search" ? "text-accent-cyan" : "text-premium-muted"}`}
         >
           <Search className="w-5 h-5" />
         </button>
-        <button 
+        <button
           onClick={() => setIsCreateModalOpen(true)}
           className="cursor-pointer text-premium-muted hover:text-accent-cyan transition-colors"
           title="Create post"
         >
           <PlusSquare className="w-5 h-5 text-accent-cyan" />
         </button>
-        <button 
+        <button
           onClick={() => navigate("/profile")}
           className={`cursor-pointer ${activeView === "profile" ? "text-accent-cyan" : "text-premium-muted"}`}
         >

@@ -3,13 +3,13 @@ import { useLocation } from "react-router-dom";
 import { 
   Grid, Bookmark, Heart, MessageCircle, 
   MoreHorizontal, Smile, Send, Bookmark as BookmarkIcon,
-  ShieldCheck, Link2, Lock, Film, Play, Clapperboard, Eye, Trash2, Loader2, X, AlertCircle
+  ShieldCheck, Link2, Lock, Film, Play, Clapperboard, Eye, Trash2, Loader2, X, AlertCircle, Edit3
 } from "lucide-react";
 import { USER_API_BASE_URL, POST_API_BASE_URL } from "../../config";
 import EditProfilePage from "./EditProfilePage";
-import { gsap } from "gsap";
+import gsap from "gsap";
 
-export default function ProfilePage({ posts, token, onPostDeleted }) {
+export default function ProfilePage({ posts, token, me, onPostDeleted, onPostUpdated }) {
   const [activeTab, setActiveTab] = useState("posts");
   const [selectedPost, setSelectedPost] = useState(null);
   const [commentInputs, setCommentInputs] = useState({});
@@ -27,6 +27,14 @@ export default function ProfilePage({ posts, token, onPostDeleted }) {
   const [deleteErrorMsg, setDeleteErrorMsg] = useState("");
   const [isClosingPost, setIsClosingPost] = useState(false);
   const [isClosingDeleteModal, setIsClosingDeleteModal] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null); // stores { commentId, username }
+  const [showEditPostModal, setShowEditPostModal] = useState(false);
+  const [editCaption, setEditCaption] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editErrorMsg, setEditErrorMsg] = useState("");
+  const [userPosts, setUserPosts] = useState([]);
+  const [postsLoading, setPostsLoading] = useState(false);
 
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
@@ -100,6 +108,42 @@ export default function ProfilePage({ posts, token, onPostDeleted }) {
     }
   };
 
+  const fetchUserPosts = async (targetUserId, targetUsername, targetAvatar) => {
+    if (!token || !targetUserId) return;
+    setPostsLoading(true);
+    try {
+      const res = await fetch(`${POST_API_BASE_URL}/posts/user/${targetUserId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          const mapped = json.data.map((p) => ({
+            id: p.id,
+            user_id: p.user_id,
+            username: targetUsername || "user",
+            userAvatar: targetAvatar || "",
+            image: p.media?.[0]?.url || "",
+            images: p.media?.map((m) => m.url) || [],
+            caption: p.caption || "",
+            location: p.location || "",
+            visibility: p.visibility,
+            commentsEnabled: p.comments_enabled,
+            likes: p.likes || 0,
+            hasLiked: p.hasLiked || false,
+            comments: p.comments || [],
+            time: p.created_at ? new Date(p.created_at).toLocaleDateString() : "Just now"
+          }));
+          setUserPosts(mapped);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch user posts:", err);
+    } finally {
+      setPostsLoading(false);
+    }
+  };
+
   const fetchProfile = async () => {
     if (!token) return;
     setProfileLoading(true);
@@ -115,6 +159,10 @@ export default function ProfilePage({ posts, token, onPostDeleted }) {
         const data = await res.json();
         if (data.success && data.data) {
           setProfile(data.data);
+          const targetUserId = data.data.user_id || data.data.id;
+          if (targetUserId) {
+            fetchUserPosts(targetUserId, data.data.username, data.data.profile_picture_url);
+          }
         }
       }
     } catch (err) {
@@ -236,6 +284,7 @@ export default function ProfilePage({ posts, token, onPostDeleted }) {
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
+          setUserPosts((prev) => prev.filter((p) => p.id !== targetId));
           handleCloseDeleteModal();
           handleClosePostModal();
           if (onPostDeleted) {
@@ -256,24 +305,155 @@ export default function ProfilePage({ posts, token, onPostDeleted }) {
     }
   };
 
-  const handleCommentSubmit = (e, postId) => {
+  const handleCommentSubmit = async (e, postId) => {
     e.preventDefault();
     const text = commentInputs[postId]?.trim();
     if (!text) return;
-    if (selectedPost) {
-      setSelectedPost({
-        ...selectedPost,
-        comments: [...(selectedPost.comments || []), { username: profile.username || "you", text }]
+    if (!token) return;
+
+    try {
+      const url = replyingTo 
+        ? `${POST_API_BASE_URL}/posts/${postId}/comments/${replyingTo.commentId}/reply`
+        : `${POST_API_BASE_URL}/posts/${postId}/comments`;
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ content: text })
       });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.data) {
+          const newComment = {
+            id: data.data.id,
+            user_id: me?.user_id || me?.id,
+            username: profile.username || me?.username || "you",
+            text: text,
+            parent_comment_id: replyingTo ? replyingTo.commentId : null
+          };
+          if (selectedPost) {
+            setSelectedPost({
+              ...selectedPost,
+              comments: [...(selectedPost.comments || []), newComment]
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error posting comment:", err);
     }
     setCommentInputs((prev) => ({ ...prev, [postId]: "" }));
+    setReplyingTo(null);
+  };
+
+  const handleLikePost = async (postId) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${POST_API_BASE_URL}/posts/${postId}/like`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.data) {
+          const liked = data.data.liked;
+          if (selectedPost) {
+            setSelectedPost({
+              ...selectedPost,
+              hasLiked: liked,
+              likes: liked 
+                ? (selectedPost.likes || 0) + 1 
+                : Math.max(0, (selectedPost.likes || 1) - 1)
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error liking post:", err);
+    }
+  };
+
+  const handleOpenEditModal = () => {
+    if (!selectedPost) return;
+    setEditCaption(selectedPost.caption || "");
+    setEditLocation(selectedPost.location || "");
+    setEditErrorMsg("");
+    setShowEditPostModal(true);
+  };
+
+  const handleSavePostEdit = async () => {
+    if (!selectedPost || !token) return;
+    setIsSavingEdit(true);
+    setEditErrorMsg("");
+    try {
+      const res = await fetch(`${POST_API_BASE_URL}/posts/${selectedPost.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          caption: editCaption,
+          location: editLocation,
+          visibility: selectedPost.visibility || "PUBLIC",
+          comments_enabled: selectedPost.commentsEnabled !== false
+        }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          const updated = {
+            ...selectedPost,
+            caption: editCaption,
+            location: editLocation,
+          };
+          setSelectedPost(updated);
+          setUserPosts((prev) => prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
+          if (onPostUpdated) {
+            onPostUpdated(updated);
+          }
+          setShowEditPostModal(false);
+        } else {
+          setEditErrorMsg(json.message || "Failed to update post.");
+        }
+      } else {
+        setEditErrorMsg("Error response from server.");
+      }
+    } catch (err) {
+      setEditErrorMsg("Connection error.");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!token || !selectedPost) return;
+    try {
+      const res = await fetch(`${POST_API_BASE_URL}/posts/${selectedPost.id}/comments/${commentId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setSelectedPost((prev) => ({
+          ...prev,
+          comments: prev.comments.filter((c) => c.id !== commentId)
+        }));
+      }
+    } catch (err) {
+      console.error("Error deleting comment:", err);
+    }
   };
 
   const handleUpdateSuccess = () => {
     fetchProfile();
   };
 
-  const displayedPosts = activeTab === "posts" ? posts : savedPosts;
+  const displayedPosts = activeTab === "posts" ? userPosts : savedPosts;
 
   if (isEditing) {
     return (
@@ -602,17 +782,29 @@ export default function ProfilePage({ posts, token, onPostDeleted }) {
                   </div>
                 </div>
 
-                {/* Aesthetic Action Buttons: Delete & Close */}
+                {/* Aesthetic Action Buttons: Edit, Delete & Close */}
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={openDeleteModal}
-                    className="w-8 h-8 rounded-full bg-accent-coral/10 hover:bg-accent-coral hover:text-white text-accent-coral border border-accent-coral/20 flex items-center justify-center transition-all duration-200 cursor-pointer shadow-sm hover:scale-105 active:scale-95"
-                    title="Delete Post"
-                  >
-                    <Trash2 className="w-4 h-4 stroke-[2]" />
-                  </button>
+                  {selectedPost && me && (selectedPost.user_id === me.id || selectedPost.user_id === me.user_id) && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleOpenEditModal}
+                        className="w-8 h-8 rounded-full bg-accent-cyan/10 hover:bg-accent-cyan hover:text-white text-accent-cyan border border-accent-cyan/20 flex items-center justify-center transition-all duration-200 cursor-pointer shadow-sm hover:scale-105 active:scale-95"
+                        title="Edit Post"
+                      >
+                        <Edit3 className="w-4 h-4 stroke-[2]" />
+                      </button>
 
+                      <button
+                        type="button"
+                        onClick={openDeleteModal}
+                        className="w-8 h-8 rounded-full bg-accent-coral/10 hover:bg-accent-coral hover:text-white text-accent-coral border border-accent-coral/20 flex items-center justify-center transition-all duration-200 cursor-pointer shadow-sm hover:scale-105 active:scale-95"
+                        title="Delete Post"
+                      >
+                        <Trash2 className="w-4 h-4 stroke-[2]" />
+                      </button>
+                    </>
+                  )}
                   <button 
                     type="button"
                     onClick={handleClosePostModal}
@@ -627,41 +819,104 @@ export default function ProfilePage({ posts, token, onPostDeleted }) {
               {/* Comments Feed */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[180px] md:max-h-[320px] bg-premium-bg/30">
                 {/* Caption */}
-                <div className="text-xs flex gap-3">
-                  <AvatarImg
-                    src={profile.profile_picture_url}
-                    alt={profile.username || "user"}
-                    className="w-7 h-7 rounded-full object-cover shrink-0"
-                  />
-                  <div>
-                    <span className="font-bold text-premium-text mr-1.5 hover:text-accent-cyan cursor-pointer transition-colors">
-                      {profile.username || "—"}
-                    </span>
-                    <span className="text-premium-text/90 leading-relaxed font-medium">{selectedPost.caption}</span>
+                {selectedPost.caption && (
+                  <div className="p-3.5 rounded-2xl bg-premium-card/90 border border-premium-border/60 shadow-sm space-y-1 mb-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-bold text-accent-cyan bg-accent-cyan/10 px-2 py-0.5 rounded-full border border-accent-cyan/20 uppercase tracking-wider">
+                        Caption
+                      </span>
+                    </div>
+                    <p className="text-[13px] text-premium-text font-medium leading-relaxed select-text">
+                      {selectedPost.caption}
+                    </p>
                   </div>
-                </div>
+                )}
 
                 {/* Comments */}
-                {selectedPost.comments && selectedPost.comments.map((comment, index) => (
-                  <div key={index} className="text-xs flex gap-3">
-                    <div className="w-7 h-7 rounded-full bg-premium-gray text-premium-text flex-shrink-0 flex items-center justify-center font-bold text-[8px] uppercase border border-premium-border select-none">
-                      {comment.username.slice(0, 2)}
-                    </div>
-                    <div>
-                      <span className="font-bold text-premium-text mr-1.5 hover:text-accent-cyan cursor-pointer transition-colors">
-                        {comment.username}
-                      </span>
-                      <span className="text-premium-text/90 leading-relaxed">{comment.text}</span>
-                    </div>
+                {selectedPost.comments && selectedPost.comments.filter(c => !c.parent_comment_id).length > 0 ? (
+                  selectedPost.comments.filter(c => !c.parent_comment_id).map((comment, index) => {
+                    const commentReplies = selectedPost.comments.filter(c => c.parent_comment_id === comment.id);
+                    return (
+                      <div key={index} className="space-y-2">
+                        {/* Parent Comment */}
+                        <div className="text-xs flex gap-3">
+                          <div className="w-7 h-7 rounded-full bg-premium-gray text-premium-text flex-shrink-0 flex items-center justify-center font-bold text-[8px] uppercase border border-premium-border select-none">
+                            {comment.username ? comment.username.slice(0, 2) : "US"}
+                          </div>
+                          <div className="flex-1">
+                            <span className="font-bold text-premium-text mr-1.5 hover:text-accent-cyan cursor-pointer transition-colors">
+                              {comment.username || "user"}
+                            </span>
+                            <span className="text-premium-text/90 leading-relaxed">{comment.text}</span>
+                            <div className="flex gap-3 mt-1 text-[10px] text-premium-muted font-bold">
+                              <button 
+                                type="button"
+                                onClick={() => setReplyingTo({ commentId: comment.id, username: comment.username || "user" })}
+                                className="hover:text-premium-text transition-colors cursor-pointer focus:outline-none"
+                              >
+                                Reply
+                              </button>
+                              {me && comment.user_id && (me.id || me.user_id) && (comment.user_id === me.id || comment.user_id === me.user_id) && (
+                                <button 
+                                  type="button"
+                                  onClick={() => handleDeleteComment(comment.id)}
+                                  className="text-accent-coral/80 hover:text-accent-coral transition-colors cursor-pointer focus:outline-none ml-2"
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Nested Replies */}
+                        {commentReplies.length > 0 && (
+                          <div className="pl-10 space-y-2">
+                            {commentReplies.map((reply, rIdx) => (
+                              <div key={rIdx} className="text-xs flex gap-3">
+                                <div className="w-6 h-6 rounded-full bg-premium-gray text-premium-text flex-shrink-0 flex items-center justify-center font-bold text-[7px] uppercase border border-premium-border select-none">
+                                  {reply.username ? reply.username.slice(0, 2) : "US"}
+                                </div>
+                                <div>
+                                  <span className="font-bold text-premium-text mr-1.5 hover:text-accent-cyan cursor-pointer transition-colors">
+                                    {reply.username || "user"}
+                                  </span>
+                                  <span className="text-premium-text/90 leading-relaxed">{reply.text}</span>
+                                  {me && reply.user_id && (me.id || me.user_id) && (reply.user_id === me.id || reply.user_id === me.user_id) && (
+                                    <div className="mt-0.5">
+                                      <button 
+                                        type="button"
+                                        onClick={() => handleDeleteComment(reply.id)}
+                                        className="text-[10px] text-accent-coral/80 hover:text-accent-coral font-bold transition-colors cursor-pointer focus:outline-none"
+                                      >
+                                        Delete
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-8 space-y-1">
+                    <p className="text-xs font-bold text-premium-text">No comments yet.</p>
+                    <p className="text-[10px] text-premium-muted font-medium">Start the conversation.</p>
                   </div>
-                ))}
+                )}
               </div>
 
               {/* Action drawer */}
               <div className="p-4 border-t border-premium-border space-y-2 bg-premium-bg/50">
                 <div className="flex items-center justify-between">
                   <div className="flex gap-4 text-premium-text">
-                    <Heart className="w-5 h-5 hover:text-accent-coral cursor-pointer transition-colors" />
+                    <Heart 
+                      onClick={() => handleLikePost(selectedPost.id)}
+                      className={`w-5 h-5 cursor-pointer transition-colors ${selectedPost.hasLiked ? "text-accent-coral fill-current animate-heart-pop" : "hover:text-accent-coral"}`} 
+                    />
                     <MessageCircle className="w-5 h-5 hover:text-premium-muted cursor-pointer" />
                     <Send className="w-5 h-5 hover:text-premium-muted cursor-pointer" />
                   </div>
@@ -671,6 +926,20 @@ export default function ProfilePage({ posts, token, onPostDeleted }) {
                   {(selectedPost.likes || 0).toLocaleString()} likes
                 </div>
               </div>
+
+              {/* Reply indicator above comment form */}
+              {replyingTo && (
+                <div className="flex items-center justify-between px-4 py-2 bg-premium-card border-t border-premium-border/60 text-[10px] text-premium-muted">
+                  <span>Replying to <span className="font-bold text-accent-cyan">@{replyingTo.username}</span></span>
+                  <button 
+                    type="button"
+                    onClick={() => setReplyingTo(null)}
+                    className="hover:text-premium-text font-bold text-xs focus:outline-none cursor-pointer"
+                  >
+                    &times;
+                  </button>
+                </div>
+              )}
 
               {/* Comment form */}
               <form 
@@ -915,6 +1184,71 @@ export default function ProfilePage({ posts, token, onPostDeleted }) {
                 type="button"
                 onClick={handleCloseDeleteModal}
                 disabled={isDeletingPost}
+                className="w-full py-2.5 rounded-2xl bg-premium-gray hover:bg-premium-gray/80 text-premium-text font-bold text-xs border border-premium-border transition-all cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modern Edit Post Dialog Overlay */}
+      {showEditPostModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
+          <div className="bg-premium-card rounded-3xl max-w-sm w-full p-6 border border-premium-border shadow-premium flex flex-col gap-4">
+            <h3 className="font-bold text-base text-premium-text font-display">Edit Post</h3>
+            
+            <div className="space-y-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] uppercase font-bold text-premium-muted">Caption</label>
+                <textarea
+                  value={editCaption}
+                  onChange={(e) => setEditCaption(e.target.value)}
+                  className="w-full bg-premium-bg text-xs text-premium-text p-3 rounded-2xl border border-premium-border/60 focus:outline-none focus:border-accent-cyan/85 h-20 resize-none"
+                  placeholder="Write a caption..."
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] uppercase font-bold text-premium-muted">Location</label>
+                <input
+                  type="text"
+                  value={editLocation}
+                  onChange={(e) => setEditLocation(e.target.value)}
+                  className="w-full bg-premium-bg text-xs text-premium-text px-4 py-2.5 rounded-2xl border border-premium-border/60 focus:outline-none focus:border-accent-cyan/85"
+                  placeholder="Add location"
+                />
+              </div>
+            </div>
+
+            {editErrorMsg && (
+              <div className="bg-accent-coral/10 border border-accent-coral/20 p-2.5 rounded-xl text-accent-coral text-xs font-semibold flex items-center gap-2 justify-center">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{editErrorMsg}</span>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={handleSavePostEdit}
+                disabled={isSavingEdit}
+                className="w-full py-2.5 rounded-2xl bg-accent-cyan hover:bg-accent-cyan/90 text-white font-bold text-xs shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isSavingEdit ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowEditPostModal(false)}
+                disabled={isSavingEdit}
                 className="w-full py-2.5 rounded-2xl bg-premium-gray hover:bg-premium-gray/80 text-premium-text font-bold text-xs border border-premium-border transition-all cursor-pointer disabled:opacity-50"
               >
                 Cancel

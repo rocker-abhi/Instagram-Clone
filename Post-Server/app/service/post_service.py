@@ -9,19 +9,27 @@ from app.core.storage import StorageFactory
 from app.storage.buckets import POST_MEDIA_BUCKET
 from app.models.post import Post
 from app.models.post_media import PostMedia
+from app.models.post_comment import PostComment
+from app.models.post_like import PostLike
 from app.schemas.post_schema import (
     PresignedUploadUrlRequest,
     PresignedUploadUrlResponse,
     PresignedUrlItem,
     PostCreateRequest,
+    PostUpdateRequest,
     PostResponse,
     PostMediaResponse,
+    PostCommentRequest,
+    PostCommentResponse,
+    PostLikeResponse,
 )
 from app.exceptions.business_exception import (
     PostNotFoundException,
     PostValidationException,
     UnauthorizedPostAccessException,
 )
+from app.kafka.producer import kafka_producer
+from app.kafka.topics import KafkaTopics
 
 logger = logging.getLogger(__name__)
 
@@ -126,35 +134,35 @@ class PostService:
 
         # Save to PostgreSQL
         created_post = await self.repository.create_post(post, media_items)
-        return await self._enrich_post_with_urls(created_post)
+        return await self._enrich_post_with_urls(created_post, current_user_id=user_id)
 
-    async def get_post_by_id(self, post_id: uuid.UUID) -> PostResponse:
+    async def get_post_by_id(self, post_id: uuid.UUID, current_user_id: uuid.UUID | None = None) -> PostResponse:
         """
         Get post details by ID with resolved presigned GET URLs.
         """
         post = await self.repository.get_post_by_id(post_id)
         if not post:
             raise PostNotFoundException(f"Post with ID '{post_id}' not found.")
-        return await self._enrich_post_with_urls(post)
+        return await self._enrich_post_with_urls(post, current_user_id=current_user_id)
 
-    async def list_feed_posts(self, limit: int = 20, offset: int = 0) -> list[PostResponse]:
+    async def list_feed_posts(self, limit: int = 20, offset: int = 0, current_user_id: uuid.UUID | None = None) -> list[PostResponse]:
         """
         List public feed posts with presigned GET URLs for direct media rendering.
         """
         posts = await self.repository.list_feed_posts(limit=limit, offset=offset)
         enriched: list[PostResponse] = []
         for post in posts:
-            enriched.append(await self._enrich_post_with_urls(post))
+            enriched.append(await self._enrich_post_with_urls(post, current_user_id=current_user_id))
         return enriched
 
-    async def list_user_posts(self, user_id: uuid.UUID, limit: int = 50, offset: int = 0) -> list[PostResponse]:
+    async def list_user_posts(self, user_id: uuid.UUID, limit: int = 50, offset: int = 0, current_user_id: uuid.UUID | None = None) -> list[PostResponse]:
         """
         List posts owned by a specific user profile.
         """
         posts = await self.repository.list_user_posts(user_id=user_id, limit=limit, offset=offset)
         enriched: list[PostResponse] = []
         for post in posts:
-            enriched.append(await self._enrich_post_with_urls(post))
+            enriched.append(await self._enrich_post_with_urls(post, current_user_id=current_user_id))
         return enriched
 
     async def delete_post(self, post_id: uuid.UUID, user_id: uuid.UUID) -> None:
@@ -171,7 +179,34 @@ class PostService:
         await self.repository.soft_delete_post(post)
         logger.info("User %s soft deleted post: %s", user_id, post_id)
 
-    async def _enrich_post_with_urls(self, post: Post) -> PostResponse:
+    async def update_post(
+        self,
+        post_id: uuid.UUID,
+        user_id: uuid.UUID,
+        request: PostUpdateRequest,
+    ) -> PostResponse:
+        """
+        Update metadata of an existing post (caption, location, visibility, comments_enabled).
+        Verifies ownership and ensures post images/media are not removed or modified.
+        """
+        post = await self.repository.get_post_by_id(post_id)
+        if not post:
+            raise PostNotFoundException(f"Post with ID '{post_id}' not found.")
+
+        if post.user_id != user_id:
+            raise UnauthorizedPostAccessException("You can only edit your own posts.")
+
+        updated_post = await self.repository.update_post(
+            post=post,
+            caption=request.caption,
+            location=request.location,
+            visibility=request.visibility,
+            comments_enabled=request.comments_enabled,
+        )
+        logger.info("User %s updated post: %s", user_id, post_id)
+        return await self._enrich_post_with_urls(updated_post, current_user_id=user_id)
+
+    async def _enrich_post_with_urls(self, post: Post, current_user_id: uuid.UUID | None = None) -> PostResponse:
         """
         Helper method converting PostMedia object keys into pre-signed GET URLs for image rendering.
         """
@@ -205,6 +240,23 @@ class PostService:
                 )
             )
 
+        # Convert comments
+        comments_list = []
+        for c in (post.comments or []):
+            if not c.is_deleted:
+                comments_list.append({
+                    "id": str(c.id),
+                    "user_id": str(c.user_id),
+                    "username": f"user_{c.user_id.hex[:4]}",
+                    "text": c.content,
+                    "parent_comment_id": str(c.parent_comment_id) if c.parent_comment_id else None,
+                    "created_at": c.created_at.isoformat()
+                })
+
+        has_liked = False
+        if current_user_id:
+            has_liked = any(str(l.user_id) == str(current_user_id) for l in (post.likes or []))
+
         return PostResponse(
             id=post.id,
             user_id=post.user_id,
@@ -217,4 +269,155 @@ class PostService:
             created_at=post.created_at,
             updated_at=post.updated_at,
             media=media_responses,
+            likes=len(post.likes or []),
+            hasLiked=has_liked,
+            comments=comments_list
         )
+
+    async def like_post(self, post_id: uuid.UUID, user_id: uuid.UUID) -> PostLikeResponse:
+        """
+        Register a like on a post (or remove it if already liked), and publish an event to Kafka.
+        """
+        post = await self.repository.get_post_by_id(post_id)
+        if not post:
+            raise PostNotFoundException(f"Post with ID '{post_id}' not found.")
+
+        # Check if already liked
+        existing_like = await self.repository.get_like(post_id=post_id, user_id=user_id)
+        if existing_like:
+            # Unlike the post
+            await self.repository.delete_like(existing_like)
+            return PostLikeResponse(
+                id=None,
+                post_id=post_id,
+                user_id=user_id,
+                created_at=None,
+                liked=False
+            )
+
+        like = PostLike(
+            post_id=post_id,
+            user_id=user_id
+        )
+        saved_like = await self.repository.create_like(like)
+
+        # Publish event via Kafka
+        event = {
+            "event_type": KafkaTopics.POST_LIKE,
+            "post_id": str(post_id),
+            "user_id": str(user_id),
+            "post_owner_id": str(post.user_id),
+            "created_at": saved_like.created_at.isoformat()
+        }
+        try:
+            kafka_producer.publish(KafkaTopics.POST_LIKE, event)
+        except Exception as e:
+            logger.error("Failed to publish post.liked event to Kafka: %s", str(e))
+
+        return PostLikeResponse(
+            id=saved_like.id,
+            post_id=saved_like.post_id,
+            user_id=saved_like.user_id,
+            created_at=saved_like.created_at,
+            liked=True
+        )
+
+    async def comment_on_post(self, post_id: uuid.UUID, user_id: uuid.UUID, request: PostCommentRequest) -> PostCommentResponse:
+        """
+        Create a comment on a post, and publish an event to Kafka.
+        """
+        post = await self.repository.get_post_by_id(post_id)
+        if not post:
+            raise PostNotFoundException(f"Post with ID '{post_id}' not found.")
+
+        comment = PostComment(
+            post_id=post_id,
+            user_id=user_id,
+            content=request.content
+        )
+        saved_comment = await self.repository.create_comment(comment)
+
+        # Publish event via Kafka
+        event = {
+            "event_type": KafkaTopics.POST_COMMENT,
+            "comment_id": str(saved_comment.id),
+            "post_id": str(post_id),
+            "user_id": str(user_id),
+            "post_owner_id": str(post.user_id),
+            "content": saved_comment.content,
+            "created_at": saved_comment.created_at.isoformat()
+        }
+        try:
+            kafka_producer.publish(KafkaTopics.POST_COMMENT, event)
+        except Exception as e:
+            logger.error("Failed to publish post.commented event to Kafka: %s", str(e))
+
+        return PostCommentResponse(
+            id=saved_comment.id,
+            post_id=saved_comment.post_id,
+            user_id=saved_comment.user_id,
+            parent_comment_id=saved_comment.parent_comment_id,
+            content=saved_comment.content,
+            created_at=saved_comment.created_at,
+            updated_at=saved_comment.updated_at
+        )
+
+    async def reply_to_comment(
+        self, post_id: uuid.UUID, comment_id: uuid.UUID, user_id: uuid.UUID, request: PostCommentRequest
+    ) -> PostCommentResponse:
+        """
+        Create a reply comment, and publish an event to Kafka.
+        """
+        post = await self.repository.get_post_by_id(post_id)
+        if not post:
+            raise PostNotFoundException(f"Post with ID '{post_id}' not found.")
+
+        parent = await self.repository.get_comment_by_id(comment_id)
+        if not parent:
+            raise PostNotFoundException(f"Comment with ID '{comment_id}' not found.")
+
+        reply = PostComment(
+            post_id=post_id,
+            user_id=user_id,
+            parent_comment_id=comment_id,
+            content=request.content
+        )
+        saved_reply = await self.repository.create_comment(reply)
+
+        # Publish event via Kafka
+        event = {
+            "event_type": KafkaTopics.COMMENT_REPLY,
+            "comment_id": str(saved_reply.id),
+            "parent_comment_id": str(comment_id),
+            "parent_comment_owner_id": str(parent.user_id),
+            "post_id": str(post_id),
+            "user_id": str(user_id),
+            "content": saved_reply.content,
+            "created_at": saved_reply.created_at.isoformat()
+        }
+        try:
+            kafka_producer.publish(KafkaTopics.COMMENT_REPLY, event)
+        except Exception as e:
+            logger.error("Failed to publish comment.replied event to Kafka: %s", str(e))
+
+        return PostCommentResponse(
+            id=saved_reply.id,
+            post_id=saved_reply.post_id,
+            user_id=saved_reply.user_id,
+            parent_comment_id=saved_reply.parent_comment_id,
+            content=saved_reply.content,
+            created_at=saved_reply.created_at,
+            updated_at=saved_reply.updated_at
+        )
+
+    async def delete_comment(self, post_id: uuid.UUID, comment_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        """
+        Delete a comment if owned by the requesting user.
+        """
+        comment = await self.repository.get_comment_by_id(comment_id)
+        if not comment:
+            raise PostNotFoundException(f"Comment with ID '{comment_id}' not found.")
+        if comment.user_id != user_id:
+            raise UnauthorizedPostAccessException("You can only delete your own comments.")
+        await self.repository.delete_comment(comment)
+

@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.post import Post
 from app.models.post_media import PostMedia
+from app.models.post_comment import PostComment
+from app.models.post_like import PostLike
 from app.enums.post_visibility import PostVisibility
 from app.exceptions.infrastructure_exception import InfrastructureException
 
@@ -50,7 +52,7 @@ class PostRepository:
         try:
             stmt = (
                 select(Post)
-                .options(selectinload(Post.media))
+                .options(selectinload(Post.media), selectinload(Post.likes), selectinload(Post.comments))
                 .where(Post.id == post_id)
                 .where(Post.is_deleted.isnot(True))
             )
@@ -67,7 +69,7 @@ class PostRepository:
         try:
             stmt = (
                 select(Post)
-                .options(selectinload(Post.media))
+                .options(selectinload(Post.media), selectinload(Post.likes), selectinload(Post.comments))
                 .where(Post.visibility == PostVisibility.PUBLIC)
                 .where(Post.is_deleted.isnot(True))
                 .order_by(Post.created_at.desc())
@@ -87,7 +89,7 @@ class PostRepository:
         try:
             stmt = (
                 select(Post)
-                .options(selectinload(Post.media))
+                .options(selectinload(Post.media), selectinload(Post.likes), selectinload(Post.comments))
                 .where(Post.user_id == user_id)
                 .where(Post.is_deleted.isnot(True))
                 .order_by(Post.created_at.desc())
@@ -113,3 +115,113 @@ class PostRepository:
             await self.session.rollback()
             logger.exception("Failed to soft delete post: %s", post.id)
             raise InfrastructureException(service="Database", message=f"Failed to delete post: {str(e)}")
+
+    async def update_post(
+        self,
+        post: Post,
+        caption: str | None,
+        location: str | None,
+        visibility: PostVisibility | None,
+        comments_enabled: bool | None,
+    ) -> Post:
+        """
+        Update post metadata without modifying post media.
+        """
+        try:
+            if caption is not None:
+                post.caption = caption
+            if location is not None:
+                post.location = location
+            if visibility is not None:
+                post.visibility = visibility
+            if comments_enabled is not None:
+                post.comments_enabled = comments_enabled
+
+            post.updated_at = datetime.now(timezone.utc)
+            await self.session.flush()
+            await self.session.commit()
+            return await self.get_post_by_id(post.id)
+        except Exception as e:
+            await self.session.rollback()
+            logger.exception("Failed to update post: %s", post.id)
+            raise InfrastructureException(service="Database", message=f"Failed to update post: {str(e)}")
+
+    async def create_like(self, like: PostLike) -> PostLike:
+        """
+        Save a new PostLike record.
+        """
+        try:
+            self.session.add(like)
+            await self.session.flush()
+            await self.session.commit()
+            return like
+        except Exception as e:
+            await self.session.rollback()
+            logger.exception("Failed to save post like")
+            raise InfrastructureException(service="Database", message=f"Failed to like post: {str(e)}")
+
+    async def get_like(self, post_id: uuid.UUID, user_id: uuid.UUID) -> PostLike | None:
+        """
+        Fetch a PostLike record if it exists.
+        """
+        try:
+            stmt = select(PostLike).where(PostLike.post_id == post_id, PostLike.user_id == user_id)
+            result = await self.session.execute(stmt)
+            return result.scalar_one_or_none()
+        except Exception as e:
+            logger.exception("Failed to fetch like for post %s and user %s", post_id, user_id)
+            raise InfrastructureException(service="Database", message=f"Failed to fetch like: {str(e)}")
+
+    async def delete_like(self, like: PostLike) -> None:
+        """
+        Delete a PostLike record.
+        """
+        try:
+            await self.session.delete(like)
+            await self.session.flush()
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            logger.exception("Failed to delete like")
+            raise InfrastructureException(service="Database", message=f"Failed to delete like: {str(e)}")
+
+    async def create_comment(self, comment: PostComment) -> PostComment:
+        """
+        Save a new PostComment record.
+        """
+        try:
+            self.session.add(comment)
+            await self.session.flush()
+            await self.session.commit()
+            return comment
+        except Exception as e:
+            await self.session.rollback()
+            logger.exception("Failed to save post comment")
+            raise InfrastructureException(service="Database", message=f"Failed to create comment: {str(e)}")
+
+    async def get_comment_by_id(self, comment_id: uuid.UUID) -> PostComment | None:
+        """
+        Fetch a comment by its UUID.
+        """
+        try:
+            stmt = select(PostComment).where(PostComment.id == comment_id).where(PostComment.is_deleted.isnot(True))
+            result = await self.session.execute(stmt)
+            return result.scalar_one_or_none()
+        except Exception as e:
+            logger.exception("Failed to fetch comment by id: %s", comment_id)
+            raise InfrastructureException(service="Database", message=f"Failed to fetch comment: {str(e)}")
+
+    async def delete_comment(self, comment: PostComment) -> None:
+        """
+        Soft delete a comment record.
+        """
+        try:
+            from datetime import datetime, timezone
+            comment.is_deleted = True
+            comment.deleted_at = datetime.now(timezone.utc)
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            logger.exception("Failed to soft delete comment: %s", comment.id)
+            raise InfrastructureException(service="Database", message=f"Failed to delete comment: {str(e)}")
+

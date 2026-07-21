@@ -75,6 +75,7 @@ class UserProfileService:
             raise ProfileNotFound(f"Profile for user ID {user_id} was not found")
 
         return UserMeResponse(
+            user_id=profile.user_id,
             username=profile.username,
             display_name=profile.display_name or "",
             profile_picture_url=await self._resolve_avatar_url(profile.profile_picture_key),
@@ -98,6 +99,7 @@ class UserProfileService:
         visibility = privacy.account_visibility if privacy else AccountVisibility.PUBLIC
 
         return PortfolioUserProfileResponse(
+            user_id=profile.user_id,
             username=profile.username,
             display_name=profile.display_name or "",
             bio=profile.bio or "",
@@ -334,6 +336,7 @@ class UserProfileService:
                     following_status = rel.status.value
 
         return PortfolioUserProfileResponse(
+            user_id=profile.user_id,
             username=profile.username,
             display_name=profile.display_name or "",
             bio=profile.bio or "",

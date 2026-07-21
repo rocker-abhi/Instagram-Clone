@@ -13,6 +13,13 @@ from app.storage.buckets import POST_MEDIA_BUCKET
 from app.core.global_exception_handler import register_exception_handlers
 from app.core.request_handler import register_middleware
 from app.routes import api_router
+from app.core.kafka import kafka_client
+
+from app.kafka.registery import EventRegistry
+from app.kafka.topics import KafkaTopics
+from app.kafka.handlers import PostLikedHandler, PostCommentedHandler, CommentRepliedHandler
+from app.kafka.consumer_manager import ConsumerManager
+from app.kafka.consumers import PostEventConsumer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -41,8 +48,47 @@ async def lifespan(app: FastAPI):
         logger.critical("MinIO storage connection failed: %s", str(e))
         raise SystemExit("Fatal: MinIO storage is unreachable.") from e
 
+    # Verify Kafka Connection
+    try:
+        kafka_client.verify_connection()
+        logger.info("Kafka connection verified successfully.")
+    except Exception as e:
+        logger.critical("Kafka connection failed: %s", str(e))
+        raise SystemExit("Fatal: Kafka is unreachable.") from e
+
+    # Initialize and start Kafka consumers
+    try:
+        
+
+        global registry, manager
+        registry = EventRegistry()
+        registry.register(KafkaTopics.POST_LIKE, PostLikedHandler())
+        registry.register(KafkaTopics.POST_COMMENT, PostCommentedHandler())
+        registry.register(KafkaTopics.COMMENT_REPLY, CommentRepliedHandler())
+
+        manager = ConsumerManager()
+        consumer = kafka_client.create_consumer(
+            topic=[
+                KafkaTopics.POST_LIKE,
+                KafkaTopics.POST_COMMENT,
+                KafkaTopics.COMMENT_REPLY
+            ],
+            group_id="post-service"
+        )
+        manager.register(PostEventConsumer(consumer, registry))
+        manager.start()
+        logger.info("Kafka consumers started successfully.")
+    except Exception as e:
+        logger.error("Failed to start Kafka consumers: %s", str(e))
+
     yield
     logger.info("Shutting down Post Service...")
+    try:
+        if 'manager' in globals():
+            manager.stop()
+            logger.info("Kafka consumers stopped successfully.")
+    except Exception as e:
+        logger.error("Failed to stop Kafka consumers: %s", str(e))
     await db.close()
     logger.info("Database connection closed.")
 

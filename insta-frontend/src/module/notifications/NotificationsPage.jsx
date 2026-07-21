@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Heart, UserCheck, Settings, CheckSquare, Loader2, AlertCircle } from "lucide-react";
 import { NOTIFICATION_API_BASE_URL } from "../../config";
-import { gsap } from "gsap";
+import gsap from "gsap";
 
 export default function NotificationsPage({ token }) {
   const [notifications, setNotifications] = useState([]);
@@ -14,6 +14,7 @@ export default function NotificationsPage({ token }) {
   const containerRef = useRef(null);
 
   useEffect(() => {
+    if (!containerRef.current) return;
     gsap.fromTo(
       containerRef.current,
       { opacity: 0, scale: 0.98 },

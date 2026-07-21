@@ -28,6 +28,7 @@ class PortfolioUserProfileResponse(BaseModel):
     Full profile data needed by the ProfilePage component.
     Returned by GET /portfolio-user-profile.
     """
+    user_id: UUID4
     username: str
     display_name: str          # maps to fullName in the frontend
     bio: str
@@ -44,6 +45,7 @@ class UserMeResponse(BaseModel):
     Lightweight summary returned by GET /user-profile/me.
     Contains only the three fields the frontend sidebar / navbar needs.
     """
+    user_id: UUID4
     username: str
     display_name: str
     profile_picture_url: str   # resolved pre-signed URL, or ""

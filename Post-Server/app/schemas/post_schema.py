@@ -54,6 +54,13 @@ class PostCreateRequest(BaseModel):
     media: list[PostMediaInput] = Field(..., min_items=1, max_items=10, description="Uploaded media files")
 
 
+class PostUpdateRequest(BaseModel):
+    caption: str | None = Field(None, max_length=2200, description="Updated post caption text")
+    location: str | None = Field(None, max_length=255, description="Updated tagged location name")
+    visibility: PostVisibility | None = Field(None, description="Updated post privacy visibility")
+    comments_enabled: bool | None = Field(None, description="Updated allow comments toggle")
+
+
 # ---------------------------------------------------------
 # Post Response Schemas
 # ---------------------------------------------------------
@@ -84,3 +91,30 @@ class PostResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     media: list[PostMediaResponse]
+    likes: int = 0
+    hasLiked: bool = False
+    comments: list[dict] = []
+
+
+class PostCommentRequest(BaseModel):
+    content: str = Field(..., min_length=1, max_length=1000, description="Comment text content")
+
+
+class PostCommentResponse(BaseModel):
+    id: uuid.UUID
+    post_id: uuid.UUID
+    user_id: uuid.UUID
+    parent_comment_id: uuid.UUID | None = None
+    content: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class PostLikeResponse(BaseModel):
+    id: uuid.UUID | None = None
+    post_id: uuid.UUID
+    user_id: uuid.UUID
+    created_at: datetime | None = None
+    liked: bool
+
+

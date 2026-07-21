@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,6 +18,12 @@ from app.kafka.kafka_client import kafka_client
 from app.core.logger import setup_logger
 from app.core.email import email_service
 
+from app.kafka.handler.post_notification_handlers import (
+    PostLikedNotificationHandler,
+    PostCommentedNotificationHandler,
+    CommentRepliedNotificationHandler
+)
+
 setup_logger()
 logger = logging.getLogger(__name__)
 
@@ -34,6 +41,15 @@ registry.register(
 registry.register(
     KafakTopics.USER_PASSWORD_RESET_REQUESTED, PasswordResetRequestedHandler(email_service)
 )
+registry.register(
+    KafakTopics.POST_LIKED, PostLikedNotificationHandler()
+)
+registry.register(
+    KafakTopics.POST_COMMENTED, PostCommentedNotificationHandler()
+)
+registry.register(
+    KafakTopics.COMMENT_REPLIED, CommentRepliedNotificationHandler()
+)
 
 manager = ConsumerManager()
 consumer = kafka_client.create_consumer(
@@ -41,7 +57,10 @@ consumer = kafka_client.create_consumer(
         KafakTopics.USER_REGISTERED, 
         KafakTopics.EMAIL_VERIFIED, 
         KafakTopics.USER_PASSWORD_RESET_COMPLETED,
-        KafakTopics.USER_PASSWORD_RESET_REQUESTED
+        KafakTopics.USER_PASSWORD_RESET_REQUESTED,
+        KafakTopics.POST_LIKED,
+        KafakTopics.POST_COMMENTED,
+        KafakTopics.COMMENT_REPLIED
     ],
     group_id="notification-service"
 )
@@ -50,6 +69,10 @@ manager.register(NotificationConsumer(consumer, registry))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Capture the running main event loop for handler threads to reuse
+    from app.kafka.handler.post_notification_handlers import BaseNotificationHandler
+    BaseNotificationHandler.main_loop = asyncio.get_running_loop()
+
     logger.info("Verifying Kafka connection...")
     kafka_client.verify_connection()
     logger.info("Starting Notification Service background consumers...")
