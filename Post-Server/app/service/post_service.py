@@ -11,6 +11,9 @@ from app.models.post import Post
 from app.models.post_media import PostMedia
 from app.models.post_comment import PostComment
 from app.models.post_like import PostLike
+from app.enums.media_type import MediaType
+from app.service.hls_service import hls_service
+from minio.datatypes import Part
 from app.schemas.post_schema import (
     PresignedUploadUrlRequest,
     PresignedUploadUrlResponse,
@@ -22,6 +25,12 @@ from app.schemas.post_schema import (
     PostCommentRequest,
     PostCommentResponse,
     PostLikeResponse,
+    MultipartInitiateRequest,
+    MultipartInitiateResponse,
+    MultipartPresignPartsRequest,
+    MultipartPresignPartsResponse,
+    MultipartCompleteRequest,
+    PresignedPartItem,
 )
 from app.exceptions.business_exception import (
     PostNotFoundException,
@@ -92,6 +101,91 @@ class PostService:
             upload_urls=upload_items,
         )
 
+    async def initiate_multipart_upload(
+        self,
+        user_id: uuid.UUID,
+        request: MultipartInitiateRequest,
+    ) -> MultipartInitiateResponse:
+        """
+        Initiate a multipart upload session with MinIO.
+        """
+        post_id = uuid.uuid4()
+        await self.storage.ensure_bucket(POST_MEDIA_BUCKET)
+
+        ext = request.file_name.split(".")[-1] if "." in request.file_name else "mp4"
+        object_key = f"posts/{user_id}/{post_id}/reel_{uuid.uuid4().hex[:8]}.{ext}"
+
+        upload_id = await asyncio.to_thread(
+            self.storage._client._create_multipart_upload,
+            bucket_name=POST_MEDIA_BUCKET,
+            object_name=object_key,
+            headers={},
+        )
+
+        logger.info("Initiated multipart upload for user %s: object_key=%s, upload_id=%s", user_id, object_key, upload_id)
+        return MultipartInitiateResponse(
+            post_id=post_id,
+            upload_id=upload_id,
+            object_key=object_key,
+        )
+
+    async def presign_multipart_parts(
+        self,
+        user_id: uuid.UUID,
+        request: MultipartPresignPartsRequest,
+    ) -> MultipartPresignPartsResponse:
+        """
+        Generate presigned PUT URLs for specific part numbers of a multipart upload.
+        """
+        parts_list = []
+        for part_num in request.part_numbers:
+            # Generate presigned PUT URL using MinIO's get_presigned_url
+            upload_url = await asyncio.to_thread(
+                self.storage._client.get_presigned_url,
+                method="PUT",
+                bucket_name=POST_MEDIA_BUCKET,
+                object_name=request.object_key,
+                expires=timedelta(minutes=30),
+                extra_query_params={
+                    "uploadId": request.upload_id,
+                    "partNumber": str(part_num),
+                },
+            )
+            parts_list.append(
+                PresignedPartItem(
+                    part_number=part_num,
+                    upload_url=upload_url,
+                )
+            )
+
+        return MultipartPresignPartsResponse(parts=parts_list)
+
+    async def complete_multipart_upload(
+        self,
+        user_id: uuid.UUID,
+        request: MultipartCompleteRequest,
+    ) -> dict:
+        """
+        Signal MinIO to complete/assemble the uploaded chunks into the final object.
+        """
+        # Map input parts to minio.datatypes.Part
+        minio_parts = [
+            Part(part_number=p.part_number, etag=p.etag)
+            for p in request.parts
+        ]
+
+        # Call MinIO's internal/private _complete_multipart_upload
+        await asyncio.to_thread(
+            self.storage._client._complete_multipart_upload,
+            bucket_name=POST_MEDIA_BUCKET,
+            object_name=request.object_key,
+            upload_id=request.upload_id,
+            parts=minio_parts,
+        )
+
+        logger.info("Completed multipart upload for upload_id: %s", request.upload_id)
+        return {"success": True, "message": "Multipart upload completed successfully."}
+
     async def create_post(
         self,
         user_id: uuid.UUID,
@@ -134,6 +228,12 @@ class PostService:
 
         # Save to PostgreSQL
         created_post = await self.repository.create_post(post, media_items)
+
+        # Trigger background HLS transcoding task for video media items
+        for m in media_items:
+            if m.media_type == MediaType.VIDEO:
+                asyncio.create_task(hls_service.generate_hls_stream(m.object_key))
+
         return await self._enrich_post_with_urls(created_post, current_user_id=user_id)
 
     async def get_post_by_id(self, post_id: uuid.UUID, current_user_id: uuid.UUID | None = None) -> PostResponse:
@@ -223,6 +323,18 @@ class PostService:
                 expires_in=3600,
             )
 
+            hls_url = None
+            if m.media_type == MediaType.VIDEO:
+                key_parts = m.object_key.split("/")
+                if len(key_parts) >= 3:
+                    hls_key = "/".join(key_parts[:-1]) + "/hls/index.m3u8"
+                    if await self.storage.exists(POST_MEDIA_BUCKET, hls_key):
+                        hls_url = await self.storage.get_url(
+                            bucket=POST_MEDIA_BUCKET,
+                            object_key=hls_key,
+                            expires_in=3600,
+                        )
+
             media_responses.append(
                 PostMediaResponse(
                     id=m.id,
@@ -230,6 +342,7 @@ class PostService:
                     object_key=m.object_key,
                     thumbnail_key=m.thumbnail_key,
                     url=presigned_url,
+                    hls_url=hls_url,
                     display_order=m.display_order,
                     mime_type=m.mime_type,
                     file_size=m.file_size,

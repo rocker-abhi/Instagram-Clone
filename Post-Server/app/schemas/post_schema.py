@@ -70,6 +70,7 @@ class PostMediaResponse(BaseModel):
     object_key: str
     thumbnail_key: str | None = None
     url: str = Field(..., description="Pre-signed GET URL valid for direct client rendering")
+    hls_url: str | None = Field(None, description="Pre-signed GET URL for HLS master playlist (.m3u8)")
     display_order: int
     mime_type: str
     file_size: int
@@ -116,5 +117,46 @@ class PostLikeResponse(BaseModel):
     user_id: uuid.UUID
     created_at: datetime | None = None
     liked: bool
+
+
+# ---------------------------------------------------------
+# Multipart Upload Schemas
+# ---------------------------------------------------------
+class MultipartInitiateRequest(BaseModel):
+    file_name: str
+    content_type: str
+
+
+class MultipartInitiateResponse(BaseModel):
+    post_id: uuid.UUID
+    upload_id: str
+    object_key: str
+
+
+class MultipartPresignPartsRequest(BaseModel):
+    upload_id: str
+    object_key: str
+    part_numbers: list[int]
+
+
+class PresignedPartItem(BaseModel):
+    part_number: int
+    upload_url: str
+
+
+class MultipartPresignPartsResponse(BaseModel):
+    parts: list[PresignedPartItem]
+
+
+class PartETag(BaseModel):
+    part_number: int
+    etag: str
+
+
+class MultipartCompleteRequest(BaseModel):
+    upload_id: str
+    object_key: str
+    parts: list[PartETag]
+
 
 

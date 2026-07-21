@@ -14,6 +14,11 @@ from app.schemas.post_schema import (
     PostCommentRequest,
     PostCommentResponse,
     PostLikeResponse,
+    MultipartInitiateRequest,
+    MultipartInitiateResponse,
+    MultipartPresignPartsRequest,
+    MultipartPresignPartsResponse,
+    MultipartCompleteRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -39,6 +44,60 @@ async def request_presigned_upload_urls(
     return APIResponse(
         success=True,
         message="Pre-signed upload URLs generated successfully.",
+        data=result,
+    )
+
+
+@router.post(
+    "/multipart/initiate",
+    response_model=APIResponse[MultipartInitiateResponse],
+    summary="Initiate MinIO multipart upload session"
+)
+async def initiate_multipart_upload(
+    request: MultipartInitiateRequest,
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    post_service: PostService = Depends(get_post_service),
+):
+    result = await post_service.initiate_multipart_upload(user_id=user_id, request=request)
+    return APIResponse(
+        success=True,
+        message="Multipart upload initiated successfully.",
+        data=result,
+    )
+
+
+@router.post(
+    "/multipart/presign-parts",
+    response_model=APIResponse[MultipartPresignPartsResponse],
+    summary="Generate presigned upload URLs for specific part numbers"
+)
+async def presign_multipart_parts(
+    request: MultipartPresignPartsRequest,
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    post_service: PostService = Depends(get_post_service),
+):
+    result = await post_service.presign_multipart_parts(user_id=user_id, request=request)
+    return APIResponse(
+        success=True,
+        message="Presigned part upload URLs generated successfully.",
+        data=result,
+    )
+
+
+@router.post(
+    "/multipart/complete",
+    response_model=APIResponse[dict],
+    summary="Complete MinIO multipart upload"
+)
+async def complete_multipart_upload(
+    request: MultipartCompleteRequest,
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    post_service: PostService = Depends(get_post_service),
+):
+    result = await post_service.complete_multipart_upload(user_id=user_id, request=request)
+    return APIResponse(
+        success=True,
+        message="Multipart upload completed successfully.",
         data=result,
     )
 

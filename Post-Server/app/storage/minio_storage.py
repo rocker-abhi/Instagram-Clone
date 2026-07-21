@@ -38,6 +38,28 @@ class MinioStorage:
             )
             logger.info("Created missing MinIO bucket: %s", bucket_name)
 
+        # Set public read bucket policy so HLS segments (.ts) and media files are publicly readable
+        try:
+            import json
+            policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": {"AWS": ["*"]},
+                        "Action": ["s3:GetObject"],
+                        "Resource": [f"arn:aws:s3:::{bucket_name}/*"],
+                    }
+                ],
+            }
+            await asyncio.to_thread(
+                self._client.set_bucket_policy,
+                bucket_name,
+                json.dumps(policy),
+            )
+        except Exception as policy_err:
+            logger.warning("Could not set bucket policy on %s: %s", bucket_name, policy_err)
+
     async def upload(
         self,
         request: UploadRequest,

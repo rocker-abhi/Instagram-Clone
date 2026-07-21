@@ -11,6 +11,7 @@ import RequestsPage from "../requests/RequestsPage";
 import NotificationsPage from "../notifications/NotificationsPage";
 import ChatsPage from "../chats/ChatsPage";
 import CreatePostModal from "../post/CreatePostModal";
+import HLSVideoPlayer from "../post/HLSVideoPlayer";
 import { USER_API_BASE_URL, POST_API_BASE_URL, CHAT_WS_URL } from "../../config";
 import { gsap } from "gsap";
 
@@ -164,6 +165,8 @@ export default function HomePage({ onLogout, token }) {
               username: me.username || "user",
               userAvatar: me.profile_picture_url || "",
               image: p.media?.[0]?.url || "",
+              hls_url: p.media?.[0]?.hls_url || null,
+              mediaType: p.media?.[0]?.media_type || "IMAGE",
               images: p.media?.map((m) => m.url) || [],
               caption: p.caption || "",
               location: p.location || "",
@@ -643,11 +646,18 @@ export default function HomePage({ onLogout, token }) {
                         className="relative aspect-square bg-premium-bg select-none cursor-pointer overflow-hidden flex items-center justify-center"
                         onDoubleClick={() => handleDoubleTap(post.id)}
                       >
-                        <img
-                          src={post.image}
-                          alt="Post media"
-                          className="w-full h-full object-cover hover:scale-[1.01] transition-transform duration-700"
-                        />
+                        {post.mediaType === "VIDEO" ? (
+                          <HLSVideoPlayer
+                            src={post.hls_url || post.image}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <img
+                            src={post.image}
+                            alt="Post media"
+                            className="w-full h-full object-cover hover:scale-[1.01] transition-transform duration-700"
+                          />
+                        )}
                         {/* Heart Pop */}
                         {likeAnimationId === post.id && (
                           <div className="absolute inset-0 flex items-center justify-center bg-black/30 animate-fade-in z-10">

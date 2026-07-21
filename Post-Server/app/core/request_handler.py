@@ -26,6 +26,10 @@ def register_middleware(app: FastAPI) -> None:
         try:
             response = await call_next(request)
 
+            # Force HTTP 200 for completed multipart upload requests
+            if request.url.path.endswith("/multipart/complete") and response.status_code == 201:
+                response.status_code = 200
+
             process_time = time.perf_counter() - start_time
 
             logger.info(

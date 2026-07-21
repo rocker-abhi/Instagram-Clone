@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { USER_API_BASE_URL, POST_API_BASE_URL } from "../../config";
 import EditProfilePage from "./EditProfilePage";
+import HLSVideoPlayer from "../post/HLSVideoPlayer";
 import gsap from "gsap";
 
 export default function ProfilePage({ posts, token, me, onPostDeleted, onPostUpdated }) {
@@ -124,6 +125,8 @@ export default function ProfilePage({ posts, token, me, onPostDeleted, onPostUpd
             username: targetUsername || "user",
             userAvatar: targetAvatar || "",
             image: p.media?.[0]?.url || "",
+            hls_url: p.media?.[0]?.hls_url || null,
+            mediaType: p.media?.[0]?.media_type || "IMAGE",
             images: p.media?.map((m) => m.url) || [],
             caption: p.caption || "",
             location: p.location || "",
@@ -453,7 +456,9 @@ export default function ProfilePage({ posts, token, me, onPostDeleted, onPostUpd
     fetchProfile();
   };
 
-  const displayedPosts = activeTab === "posts" ? userPosts : savedPosts;
+  const imagePosts = userPosts.filter((p) => p.mediaType !== "VIDEO");
+  const reelsList = userPosts.filter((p) => p.mediaType === "VIDEO");
+  const displayedPosts = activeTab === "posts" ? imagePosts : activeTab === "reels" ? reelsList : savedPosts;
 
   if (isEditing) {
     return (
@@ -536,7 +541,7 @@ export default function ProfilePage({ posts, token, me, onPostDeleted, onPostUpd
               <div className="grid grid-cols-3 max-w-[380px] mx-auto md:mx-0 bg-premium-card rounded-2xl border border-premium-border p-3 shadow-premium">
                 <div className="text-center border-r border-premium-border/40">
                   <span className="block font-bold text-sm text-premium-text">
-                    {activeTab === "posts" ? posts.length : savedPosts.length}
+                    {activeTab === "posts" ? imagePosts.length : activeTab === "reels" ? reelsList.length : savedPosts.length}
                   </span>
                   <span className="text-[9px] text-premium-muted uppercase font-bold tracking-wider">posts</span>
                 </div>
@@ -645,23 +650,26 @@ export default function ProfilePage({ posts, token, me, onPostDeleted, onPostUpd
 
           {/* Grid Content: REELS TAB */}
           {activeTab === "reels" ? (
-            reels.length === 0 ? (
+            reelsList.length === 0 ? (
               <div className="text-center py-24 bg-premium-card rounded-3xl border border-premium-border shadow-premium">
                 <Clapperboard className="w-10 h-10 mx-auto mb-3 stroke-[1.5] text-premium-muted/50" />
                 <p className="text-xs font-bold text-premium-muted">No Reels Uploaded Yet</p>
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-3 sm:gap-6">
-                {reels.map((reel) => (
+                {reelsList.map((reel) => (
                   <div 
                     key={reel.id} 
-                    onClick={() => setSelectedReel(reel)}
+                    onClick={() => setSelectedReel({
+                      ...reel,
+                      videoUrl: reel.hls_url || reel.image,
+                    })}
                     className="relative aspect-[9/16] cursor-pointer group bg-premium-card rounded-2xl overflow-hidden border border-premium-border/50 hover:scale-[1.01] transition-all duration-300 shadow-lg"
                   >
-                    <img 
-                      src={reel.thumbnail} 
-                      alt={reel.title} 
-                      className="w-full h-full object-cover"
+                    <HLSVideoPlayer
+                      src={reel.hls_url || reel.image}
+                      controls={false}
+                      className="w-full h-full object-cover pointer-events-none"
                     />
                     
                     {/* Dark gradient overlay at bottom */}
@@ -670,7 +678,7 @@ export default function ProfilePage({ posts, token, me, onPostDeleted, onPostUpd
                     {/* View Count Badge at bottom left */}
                     <div className="absolute bottom-3 left-3 flex items-center gap-1.5 text-white text-[11px] font-bold z-10 drop-shadow-md">
                       <Play className="w-3.5 h-3.5 fill-current" />
-                      <span>{reel.views}</span>
+                      <span>{reel.likes || 0}</span>
                     </div>
 
                     {/* Hover Play Button Overlay */}
@@ -985,8 +993,8 @@ export default function ProfilePage({ posts, token, me, onPostDeleted, onPostUpd
 
             {/* Left 9:16 Video Player Container */}
             <div className="flex-1 bg-black flex items-center justify-center relative overflow-hidden">
-              <video 
-                src={selectedReel.videoUrl} 
+              <HLSVideoPlayer 
+                src={selectedReel.hls_url || selectedReel.videoUrl} 
                 autoPlay 
                 loop 
                 controls 
