@@ -326,3 +326,134 @@ Each FastAPI microservice provides interactive Swagger / OpenAPI documentation:
 - **Post Service Docs**: `http://localhost:8080/posts/docs` (or `http://localhost:7001/docs`)
 - **Chat Service Docs**: `http://localhost:8080/chat/docs` (or `http://localhost:8001/docs`)
 - **Notification Service Docs**: `http://localhost:8080/notifications/docs` (or `http://localhost:5001/docs`)
+
+---
+
+## ✨ Core Application Features
+
+The system encompasses a comprehensive feature-set designed to mirror a production social platform:
+
+### 🔑 Authentication & Security
+* **Session Lifecycle:** JWT Access/Refresh tokens with expiration boundaries.
+* **Token Handshake Interceptor:** Frontend Axios/Fetch interceptor automatically requests a new Access Token in the background using the Refresh Token when `401 Unauthorized` responses occur.
+* **Cryptography:** RSA asymmetric key pairs securely sign and verify incoming request payloads in less than 1ms.
+
+### 👤 Profile Graph & Onboarding
+* **Onboarding Wizard:** Profile initialization screen requiring avatar upload, display name, and bio before entry.
+* **Social Graph:** Full follow/unfollow capability supporting both **Public** and **Private** accounts.
+* **Relationship Management:** Request queues allowing users to accept or decline pending follow requests.
+* **Profile Search:** Live matching query system searching users by username or full name.
+
+### 🖼️ Content Delivery (Posts, Reels & Stories)
+* **Reels & Video Streaming:** Integrated `ffmpeg` segmentation providing HLS (HTTP Live Streaming) adaptive bitrate playback.
+* **Dynamic Feed:** Combined query compiling posts and stories from followed accounts, sorted chronologically.
+* **Timelines & Expirations:** Stories database tracks and filters content based on a strict 24-hour expiration window.
+* **Interactivity:** Nested post likes and comment registry with live counter updates.
+
+### 💬 WebSocket Direct Messaging
+* **Full-Duplex Communication:** Instant, real-time message delivery over WebSockets.
+* **Message Lifecycle:** Edit and delete messages instantly with options for "Delete for Everyone".
+* **Presence Indicators:** Live online and offline status synchronizers.
+* **Unread Indicators:** Badge counts incrementing in real-time when new messages arrive.
+
+### ✉️ Event-Driven Processing & SMTP
+* **Kafka Event Pipes:** Asynchronous dispatch pipelines listening to events like `post.liked`, `post.commented`, and `user.registered`.
+* **SMTP Mail Engine:** Relays welcome messages and verification codes via Gmail SMTP server using secure TLS.
+
+---
+
+## 📸 Application Screenshot Gallery
+
+To keep the documentation clean and scannable, the screenshots of the active running system are organized below by category:
+
+<details>
+  <summary>🔒 Click to view Authentication & Onboarding Screenshots</summary>
+
+  #### Profile Setup Onboarding
+  ![Profile Setup](./screenshots/Screenshot%20From%202026-07-22%2023-16-00.png)
+
+  #### Initial Verification Page
+  ![Verify Email](./screenshots/Screenshot%20From%202026-07-22%2023-33-31.png)
+
+  #### Password Reset Flow
+  ![Reset Password](./screenshots/Screenshot%20From%202026-07-22%2023-33-36.png)
+
+  #### Sign In Screen
+  ![Login Screen](./screenshots/Screenshot%20From%202026-07-22%2023-33-39.png)
+
+  #### Account Registration
+  ![Register Screen](./screenshots/Screenshot%20From%202026-07-22%2023-33-50.png)
+
+  #### Onboarding Setup Completed
+  ![Onboarding Complete](./screenshots/Screenshot%20From%202026-07-22%2023-33-57.png)
+</details>
+
+<details>
+  <summary>👥 Click to view User Profiles & Social Graph Screenshots</summary>
+
+  #### User Timeline Profile Page
+  ![Profile Timeline](./screenshots/Screenshot%20From%202026-07-22%2023-35-44.png)
+
+  #### User Settings & Privacy Controls
+  ![Privacy Settings](./screenshots/Screenshot%20From%202026-07-22%2023-35-55.png)
+
+  #### Public Profile Preview
+  ![Public Profile](./screenshots/Screenshot%20From%202026-07-22%2023-43-27.png)
+
+  #### Search Directory Results
+  ![Search Profiles](./screenshots/Screenshot%20From%202026-07-22%2023-56-35.png)
+
+  #### Follow Requests Dashboard
+  ![Follow Requests](./screenshots/Screenshot%20From%202026-07-22%2023-56-53.png)
+
+  #### Follower / Following Lists
+  ![Follow Lists](./screenshots/Screenshot%20From%202026-07-22%2023-56-57.png)
+
+  #### User Interaction Notifications List
+  ![Notification Feed](./screenshots/Screenshot%20From%202026-07-22%2023-58-18.png)
+</details>
+
+<details>
+  <summary>💬 Click to view Real-time Direct Messaging (Chat) Screenshots</summary>
+
+  #### Direct Message Chat Interface
+  ![Chat Timeline](./screenshots/Screenshot%20From%202026-07-23%2000-03-57.png)
+
+  #### Message Deletion Options
+  ![Delete Message Dialog](./screenshots/Screenshot%20From%202026-07-23%2000-05-10.png)
+
+  #### Message Editing Mode
+  ![Edit Message](./screenshots/Screenshot%20From%202026-07-23%2000-05-16.png)
+
+  #### Dynamic Status Updates
+  ![Online Presence](./screenshots/Screenshot%20From%202026-07-23%2000-05-22.png)
+
+  #### New Chat Participant Selector
+  ![Select Friend Dialog](./screenshots/Screenshot%20From%202026-07-23%2000-11-57.png)
+
+  #### Chat Workspace Dashboard
+  ![Messaging Workspace](./screenshots/Screenshot%20From%202026-07-23%2000-12-02.png)
+</details>
+
+<details>
+  <summary>⚙️ Click to view Backend Logs, Databases & Developer Tooling Screenshots</summary>
+
+  #### Alembic Database Migrations Output
+  ![Migrations Log](./screenshots/Screenshot%20From%202026-07-23%2000-12-38.png)
+
+  #### Docker Compose Multi-Container Startup
+  ![Compose Startup Log](./screenshots/Screenshot%20From%202026-07-23%2000-13-16.png)
+
+  #### MinIO Object Browser (Buckets Registry)
+  ![MinIO File Console](./screenshots/Screenshot%20From%202026-07-23%2000-17-53.png)
+
+  #### Apache Kafka Topics UI
+  ![Kafka Topic Registry](./screenshots/Screenshot%20From%202026-07-23%2000-18-46.png)
+
+  #### Redis Session & Token Store Inspector
+  ![Redis Commander GUI](./screenshots/Screenshot%20From%202026-07-23%2000-19-17.png)
+
+  #### Microservices Container Topology Dashboard
+  ![Docker Containers Status](./screenshots/Screenshot%20From%202026-07-23%2000-20-14.png)
+</details>
+
