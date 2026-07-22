@@ -1,416 +1,324 @@
-# 📸 Instagram Clone — Distributed Microservices Architecture
+# 📸 Instaclone — Distributed Microservices Architecture
 
-A production-ready, event-driven Instagram Clone built with a **Distributed Microservices Architecture**. Powered by **FastAPI**, **gRPC**, **Apache Kafka**, **Redis**, **PostgreSQL**, **MinIO S3 Storage**, **Nginx API Gateway**, and **React (Vite + Tailwind CSS)**. Designed for independent container containerization and deployment on **AWS ECS (Elastic Container Service)**.
+A state-of-the-art, event-driven Instagram Clone built using a high-performance **Distributed Microservices Architecture**. Powered by **FastAPI**, **gRPC**, **Apache Kafka**, **Redis**, **PostgreSQL**, **MinIO S3 Storage**, **Nginx API Gateway**, and **React (Vite + HSL CSS)**.
 
----
-
-## 🚀 Key Features
-
-- **🛡️ Authentication & Security**: JWT Access/Refresh tokens, bcrypt password hashing, asymmetric RSA key verification, and gRPC authentication hooks.
-- **👤 User Management**: User profile customization, bio/avatar uploads to S3, follow/unfollow social graph, and profile search.
-- **📷 Posts, Reels & Stories**: Media uploads (photos & HLS video streaming for reels), story creation with expiration, likes, comments, and feed generation.
-- **💬 Real-time Messaging**: Full-duplex WebSocket chat service supporting messaging, message editing/deletion, and live unread notification indicators.
-- **🔔 Event-driven Notifications**: Kafka-backed asynchronous notification delivery and SMTP email dispatch.
-- **🌐 Unified Nginx API Gateway**: Single reverse-proxy entry point for REST endpoints and WebSocket protocol upgrades.
+Designed for robust horizontal scaling, independent container builds, and deployment on cloud platforms such as **AWS ECS (Elastic Container Service)**.
 
 ---
 
-## 🏗️ System Architecture & Port Registry
+## 🎨 Architectural Overview
 
-All frontend client requests route through the **Nginx API Gateway** listening on port `8080` (or port `80`).
+The system operates as an ecosystem of independent microservices communicating via synchronized **gRPC protocols** and asynchronous **Kafka events**:
 
-| Service Name | Protocol / Type | Default Host Port | Description / Responsibilities |
+```mermaid
+graph TD
+    Client[Browser Client] -->|HTTP / WebSockets| Nginx[Nginx API Gateway: 8080]
+    
+    Nginx -->|Route: /auth| Auth[Auth Service: 5000]
+    Nginx -->|Route: /user-profile| User[User Service: 6001]
+    Nginx -->|Route: /posts /stories| Post[Post Service: 7001]
+    Nginx -->|Route: /chat| Chat[Chat Service: 8001]
+    Nginx -->|Route: /notifications| Notification[Notification Service: 5001]
+    
+    Auth -.->|gRPC: Verify Auth| User
+    Chat -.->|gRPC: Resolve Users| User
+    
+    Post -->|Kafka Event: post.liked / post.commented| Broker[(Kafka Broker: 9092)]
+    User -->|Kafka Event: user.registered| Broker
+    
+    Broker -->|Subscribe & Pull| Notification
+    Notification -->|Email Dispatch| SMTP[SMTP Relay Server]
+```
+
+---
+
+## 🏗️ Port Registry & Service Topology
+
+| Service Name | Protocol / API | Default Host Port | Description & Responsibilities |
 | :--- | :--- | :--- | :--- |
-| **Nginx API Gateway** | HTTP / WS | `8080` / `80` | Reverse proxy API gateway routing client traffic |
-| **Instaclone Frontend** | HTTP (Web) | `5173` | React + Vite SPA client interface |
-| **Authentication Server (REST)** | HTTP (REST) | `5000` | User auth, login, token refresh, and registration |
-| **Authentication gRPC** | gRPC | `50050` | Auth verification hooks for internal services |
-| **User Service (REST)** | HTTP (REST) | `6001` | User profile management, relationships, and search |
-| **User Service (gRPC)** | gRPC | `50051` | Internal gRPC profile verification & sync |
-| **Post Service (REST)** | HTTP (REST) | `7001` | Posts, Reels (HLS), Stories, Likes, & Comments |
-| **Chat Service (REST/WS)** | HTTP / WS | `8001` | Real-time WebSocket messaging and chat history |
-| **Notification Server** | HTTP (REST) | `5001` | Event consumer listening to Kafka message queues |
-| **PostgreSQL Database** | PostgreSQL | `5432` | Relational SQL database (`instagram_db`) |
-| **Redis Server** | Redis TCP | `6379` | In-memory cache & WebSocket session state |
-| **Redis Commander Console** | HTTP (Web) | `8081` | Web UI administration tool for Redis database |
-| **Kafka Broker** | SASL / PLAINTEXT | `9092` | Asynchronous message broker & event stream |
-| **Kafka UI Console** | HTTP (Web) | `8082` | UI dashboard for managing topics & messages |
-| **MinIO Storage Server** | S3 API | `9000` | S3-compatible media object storage backend |
-| **MinIO Admin Console** | HTTP (Web) | `9001` | S3 bucket management dashboard |
+| **Nginx API Gateway** | HTTP / WebSockets | `8080` (or `80`) | Main reverse proxy entry point for all frontends & APIs |
+| **React Frontend Client** | HTTP (Vite) | `5173` | React web application SPA with HSL premium styling |
+| **Auth Service** | REST / HTTP | `5000` | Account registration, token refresh, and login actions |
+| **Auth gRPC Daemon** | gRPC | `50050` | Handles inter-service authentication hooks |
+| **User Profile Service** | REST / HTTP | `6001` | Profile creation, followers graph, onboarding & settings |
+| **User Service gRPC Daemon** | gRPC | `50051` | Validates usernames/details for chat and posts |
+| **Post Service** | REST / HTTP | `7001` | Story timelines, Reels (HLS streaming), posts, likes & comments |
+| **Chat Service** | WebSockets / HTTP | `8001` | Live message dispatch, editing, deletion & chat logs |
+| **Notification Service** | REST / HTTP | `5001` | Dispatches app notifications and SMTP verification mails |
+| **PostgreSQL Database** | PostgreSQL TCP | `5432` | Storage engine containing schemas for auth, posts & users |
+| **Redis Server** | Redis TCP | `6379` | Token blacklisting & real-time WS session manager |
+| **Redis Commander** | HTTP (Web) | `8081` | Web GUI interface to manage and inspect Redis keys |
+| **Apache Kafka Broker** | SASL / PLAINTEXT | `9092` | Core messaging backbone for distributed events |
+| **Kafka UI Dashboard** | HTTP (Web) | `8082` | Web dashboard to monitor topics, consumers, and lags |
+| **MinIO Storage Server** | S3 API | `9000` | S3-compatible file storage for images and videos |
+| **MinIO Admin Console** | HTTP (Web) | `9001` | S3 bucket management panel |
 
 ---
 
-## 🛠️ Step-by-Step Setup Guide
+## ⚡ Deployment & Startup Sequence
 
-### 1. Prerequisites
-Ensure you have the following installed on your host machine:
-- **Python 3.11+**
-- **Node.js 18+ & npm**
-- **Docker** (For independent container builds & testing)
-- **PostgreSQL 16+** (Running locally on port `5432` or AWS RDS)
+> [!IMPORTANT]
+> To ensure seamless network handshakes and avoid connection timeout crashes on startup, you **must** spin up the services in the following phased order:
+
+```
+┌────────────────────────────────┐
+│ PHASE 1: Core Infrastructure   │ ──► PostgreSQL, Redis, Kafka, MinIO, Nginx
+└────────────────────────────────┘
+               │
+               ▼
+┌────────────────────────────────┐
+│ PHASE 2: Database Migrations   │ ──► Alembic (Manual Local or Automatic Docker)
+└────────────────────────────────┘
+               │
+               ▼
+┌────────────────────────────────┐
+│ PHASE 3: Backend Services      │ ──► Auth, User, Post, Chat, Notification
+└────────────────────────────────┘
+               │
+               ▼
+┌────────────────────────────────┐
+│ PHASE 4: Frontend Client       │ ──► React + Vite SPA
+└────────────────────────────────┘
+```
 
 ---
 
-### 2. Startup Infrastructure Stack First
+## ⚙️ Phase 1: Core Infrastructure Setup
 
-Before launching any microservice, verify that your core infrastructure services (**PostgreSQL**, **Kafka**, **Redis**, and **MinIO**) are running and accessible:
+Before running the application, launch the database, caching, messaging, and storage components.
 
-- PostgreSQL: `localhost:5432`
-- Redis: `localhost:6379`
-- Kafka: `localhost:9092`
-- MinIO: `http://localhost:9000` (Console: `http://localhost:9001`)
+### Option A: Running via Docker (Recommended)
+From the repository root, start the pre-containerized infrastructure stack:
+```bash
+# Start MinIO S3, Redis, PostgreSQL, and Kafka UI
+docker compose -f Mini-o/docker-compose.yml up -d
+docker compose -f Redis-Server/docker-compose.yml up -d
+docker compose -f Kafka-Server/docker-compose.yml up -d
+docker compose -f nginx/docker-compose.yml up -d
+```
+
+### Option B: Running Locally (Native Host)
+Ensure the following services are active on your local loopback interface:
+* **PostgreSQL** active on `localhost:5432` with a database named `instagram_db`.
+* **Redis** active on `localhost:6379` with password authentication configured.
+* **Kafka** active on `localhost:9092` with SASL plain authentication.
+
+---
+
+## 🛠️ Phase 2: Database Migrations (Alembic)
+
+The application utilizes **Alembic** to control schemas and tables across PostgreSQL.
+
+> [!TIP]
+> **Automatic Migrations (Docker):** If you run the microservices via their `docker-compose.yml` configurations, they will automatically run connection checks and execute pending migrations on container start.
+
+To execute the database schema migrations manually on your host machine:
+
+```bash
+# 1. Initialize Authentication schemas
+cd Authentication-Server
+alembic upgrade head
+cd ..
+
+# 2. Initialize User Profile schemas
+cd User-Service
+alembic upgrade head
+cd ..
+
+# 3. Initialize Post, Likes, and Stories tables
+cd Post-Server
+alembic upgrade head
+cd ..
+
+# 4. Initialize WebSocket Chat schemas
+cd chat-server
+alembic upgrade head
+cd ..
+
+# 5. Initialize Notification schemas
+cd Notification-Server
+alembic upgrade head
+cd ..
+```
 
 ---
 
 ## ⚙️ Environment Variables Reference (`.env`)
 
-Below is the dictionary of environment variables used across the system, followed by the exact `.env` configuration files for each microservice.
+Each service contains a `.env` template file. You must fill in your specific credentials (especially database credentials and SMTP application passwords) before starting.
 
-### 📚 Environment Variable Explanations
+### 📝 Microservice `.env` Config Guide
 
-| Variable Name | Description & Purpose |
-| :--- | :--- |
-| **`APP_NAME`** | Display name of the microservice application. |
-| **`DEBUG`** | Set to `True` for development debugging logs and error tracebacks. |
-| **`HOST`** | Host interface IP address the server binds to (`127.0.0.1` for local, `0.0.0.0` for containers). |
-| **`PORT`** | HTTP TCP port number for the microservice. |
-| **`SERVICE_NAME`** | Unique microservice identifier passed in response headers (`X-Service-Name`). |
-| **`DATABASE_URL`** | Async SQLAlchemy PostgreSQL connection string (`postgresql+asyncpg://<user>:<password>@<host>:<port>/<dbname>`). |
-| **`JWT_SECRET_KEY`** | Secret key used for cryptographic signing and validation of JWT authentication tokens. |
-| **`ACCESS_TOKEN_EXPIRE_MINUTES`** | Expiration period for short-lived JWT access tokens (in minutes). |
-| **`REFRESH_TOKEN_TTL`** | Lifetime for long-lived JWT refresh tokens (in seconds). |
-| **`EMAIL_VERIFICATION_TTL`** | Validity window for email verification tokens (in seconds). |
-| **`REDIS_HOST` / `REDIS_PORT`** | Host and port for Redis cache and WebSocket pub/sub messaging. |
-| **`REDIS_PASSWORD` / `REDIS_DB`** | Authentication password and database index for Redis connection. |
-| **`REDIS_URL`** | Redis connection URI string (`redis://:<password>@<host>:<port>`). |
-| **`MINIO_ENDPOINT`** | Address of the S3-compatible MinIO object storage server (`localhost:9000`). |
-| **`MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY`** | Access credentials for MinIO storage bucket operations. |
-| **`MINIO_SECURE`** | Set to `True` for HTTPS connection to MinIO, `False` for HTTP. |
-| **`MINIO_PUBLIC_URL`** | Base URL for accessing media files and generating presigned URLs (`http://localhost:9000`). |
-| **`KAFKA_BOOTSTRAP_SERVERS`** | Connection string for Kafka brokers (`localhost:9092`). |
-| **`KAFKA_BATCH_SIZE` / `KAFKA_LINGER_MS`** | Kafka producer performance tuning for event batching. |
-| **`KAFKA_ACKS` / `KAFKA_RETRIES`** | Message acknowledgment setting (`all`) and delivery retry attempts. |
-| **`KAFKA_SECURITY_PROTOCOL`** | Security protocol used to connect to Kafka (`PLAINTEXT` or `SASL_PLAINTEXT`). |
-| **`KAFKA_SASL_MECHANISM`** | SASL authentication mechanism (`PLAIN`). |
-| **`KAFKA_SASL_PLAIN_USERNAME` / `KAFKA_SASL_PLAIN_PASSWORD`** | SASL authentication credentials for Kafka brokers. |
-| **`USER_SERVICE_HOST_GRPC` / `USER_SERVICE_PORT_GRPC`** | Internal gRPC host and port for User Service RPC methods. |
-| **`AUTH_SERVICE_HOST_GRPC` / `AUTH_SERVICE_PORT_GRPC`** | Internal gRPC host and port for Authentication Service RPC methods. |
-| **`GATEWAY_URL`** | Base URL of the Nginx API Gateway (`http://localhost:8080`). |
-| **`USER_SERVICE_GATEWAY_URL`** | Gateway route URL for fetching user profiles from Post Service (`http://localhost:8080/user-profile`). |
-| **`SMTP_HOST` / `SMTP_PORT`** | SMTP email server hostname and port (e.g. `smtp.gmail.com:587`). |
-| **`SMTP_EMAIL` / `SMTP_PASSWORD`** | Sender email address and app-specific password for email dispatch. |
-| **`SMTP_TLS`** | Set to `True` to enable TLS encryption for email delivery. |
-
----
-
-### 📝 Microservice `.env` Templates
-
-Copy and configure the templates below for each microservice:
-
-#### 🔐 `Authentication-Server/.env`
+#### 1. Authentication Server (`Authentication-Server/.env`)
 ```ini
 APP_NAME=Instagram Auth Service
 DEBUG=True
 HOST=127.0.0.1
 PORT=5000
-DATABASE_URL=postgresql+asyncpg://your_db_user:your_db_password@localhost:5432/instagram_db
+# Update with your postgres username and password
+DATABASE_URL=postgresql+asyncpg://your_db_username:your_db_password@localhost:5432/instagram_db
 SERVICE_NAME=authentication-service
 
 REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_DB=0
-REDIS_PASSWORD=your_redis_password
-REDIS_URL=redis://localhost:6379
+REDIS_PASSWORD=admin-password
+REDIS_URL=redis://:admin-password@localhost:6379/0
 
 REFRESH_TOKEN_TTL=604800
 EMAIL_VERIFICATION_TTL=900
-JWT_SECRET_KEY=your_jwt_secret_key
+JWT_SECRET_KEY=my-super-secret-key
 ACCESS_TOKEN_EXPIRE_MINUTES=15
 
 KAFKA_BOOTSTRAP_SERVERS=localhost:9092
-KAFKA_BATCH_SIZE=32768
-KAFKA_LINGER_MS=10
-KAFKA_ACKS=all
-KAFKA_RETRIES=5
-KAFKA_SECURITY_PROTOCOL=SASL_PLAINTEXT
-KAFKA_SASL_MECHANISM=PLAIN
-KAFKA_SASL_PLAIN_USERNAME=your_kafka_username
-KAFKA_SASL_PLAIN_PASSWORD=your_kafka_password
-
-USER_SERVICE_HOST_GRPC=localhost
-USER_SERVICE_PORT_GRPC=50051
-AUTH_SERVICE_HOST_GRPC=localhost
-AUTH_SERVICE_PORT_GRPC=50050
-
-GATEWAY_URL=http://localhost:8080
+KAFKA_SASL_PLAIN_USERNAME=admin
+KAFKA_SASL_PLAIN_PASSWORD=admin-password
 ```
 
-#### 👤 `User-Service/.env`
+#### 2. User Service (`User-Service/.env`)
 ```ini
 APP_NAME=Instagram User Service
 DEBUG=True
 HOST=127.0.0.1
 PORT=6001
-DATABASE_URL=postgresql+asyncpg://your_db_user:your_db_password@localhost:5432/instagram_db
+# Update with your postgres username and password
+DATABASE_URL=postgresql+asyncpg://your_db_username:your_db_password@localhost:5432/instagram_db
 SERVICE_NAME=user-service
 
-JWT_SECRET_KEY=your_jwt_secret_key
-USER_SERVICE_HOST_GRPC=localhost
-USER_SERVICE_PORT_GRPC=50051
-AUTH_SERVICE_HOST_GRPC=localhost
-AUTH_SERVICE_PORT_GRPC=50050
-
 MINIO_ENDPOINT=localhost:9000
-MINIO_ACCESS_KEY=your_minio_access_key
-MINIO_SECRET_KEY=your_minio_secret_key
-MINIO_SECURE=False
+MINIO_ACCESS_KEY=admin
+MINIO_SECRET_KEY=password123
 MINIO_PUBLIC_URL=http://localhost:9000
 
 KAFKA_BOOTSTRAP_SERVERS=localhost:9092
-KAFKA_BATCH_SIZE=32768
-KAFKA_LINGER_MS=10
-KAFKA_ACKS=all
-KAFKA_RETRIES=5
-KAFKA_SECURITY_PROTOCOL=SASL_PLAINTEXT
-KAFKA_SASL_MECHANISM=PLAIN
-KAFKA_SASL_PLAIN_USERNAME=your_kafka_username
-KAFKA_SASL_PLAIN_PASSWORD=your_kafka_password
-
-GATEWAY_URL=http://localhost:8080
+KAFKA_SASL_PLAIN_USERNAME=admin
+KAFKA_SASL_PLAIN_PASSWORD=admin-password
 ```
 
-#### 🖼️ `Post-Server/.env`
+#### 3. Post Service (`Post-Server/.env`)
 ```ini
 APP_NAME=Instagram Post Service
 DEBUG=True
 HOST=127.0.0.1
 PORT=7001
-DATABASE_URL=postgresql+asyncpg://your_db_user:your_db_password@localhost:5432/instagram_db
+# Update with your postgres username and password
+DATABASE_URL=postgresql+asyncpg://your_db_username:your_db_password@localhost:5432/instagram_db
 SERVICE_NAME=post-service
 
-JWT_SECRET_KEY=your_jwt_secret_key
-USER_SERVICE_HOST_GRPC=localhost
-USER_SERVICE_PORT_GRPC=50051
-AUTH_SERVICE_HOST_GRPC=localhost
-AUTH_SERVICE_PORT_GRPC=50050
-
 MINIO_ENDPOINT=localhost:9000
-MINIO_ACCESS_KEY=your_minio_access_key
-MINIO_SECRET_KEY=your_minio_secret_key
-MINIO_SECURE=False
+MINIO_ACCESS_KEY=admin
+MINIO_SECRET_KEY=password123
 MINIO_PUBLIC_URL=http://localhost:9000
 
 KAFKA_BOOTSTRAP_SERVERS=localhost:9092
-KAFKA_BATCH_SIZE=32768
-KAFKA_LINGER_MS=10
-KAFKA_ACKS=all
-KAFKA_RETRIES=5
-KAFKA_SECURITY_PROTOCOL=SASL_PLAINTEXT
-KAFKA_SASL_MECHANISM=PLAIN
-KAFKA_SASL_PLAIN_USERNAME=your_kafka_username
-KAFKA_SASL_PLAIN_PASSWORD=your_kafka_password
-
-GATEWAY_URL=http://localhost:8080
-USER_SERVICE_GATEWAY_URL=http://localhost:8080/user-profile
+KAFKA_SASL_PLAIN_USERNAME=admin
+KAFKA_SASL_PLAIN_PASSWORD=admin-password
 ```
 
-#### 💬 `chat-server/.env`
-```ini
-APP_NAME=Instagram Chat Service
-DEBUG=True
-DATABASE_URL=postgresql+asyncpg://your_db_user:your_db_password@localhost:5432/instagram_db
-SERVICE_NAME=chat-service
-HOST=0.0.0.0
-PORT=8001
-
-USER_SERVICE_HOST_GRPC=localhost
-USER_SERVICE_PORT_GRPC=50051
-
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_DB=0
-REDIS_PASSWORD=your_redis_password
-
-GATEWAY_URL=http://localhost:8080
-```
-
-#### 🔔 `Notification-Server/.env`
+#### 4. Notification Service (`Notification-Server/.env`)
 ```ini
 APP_NAME=Instagram Notification Service
 DEBUG=True
 HOST=127.0.0.1
 PORT=5001
-DATABASE_URL=postgresql+asyncpg://your_db_user:your_db_password@localhost:5432/instagram_db
+# Update with your postgres username and password
+DATABASE_URL=postgresql+asyncpg://your_db_username:your_db_password@localhost:5432/instagram_db
 SERVICE_NAME=notification-service
 
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_DB=0
-REDIS_PASSWORD=your_redis_password
-REDIS_URL=redis://localhost:6379
-REFRESH_TOKEN_TTL=300
-EMAIL_VERIFICATION_TTL=900
-
-JWT_SECRET_KEY=your_jwt_secret_key
-ACCESS_TOKEN_EXPIRE_MINUTES=15
-
-KAFKA_BOOTSTRAP_SERVERS=localhost:9092
-KAFKA_BATCH_SIZE=32768
-KAFKA_LINGER_MS=10
-KAFKA_ACKS=all
-KAFKA_RETRIES=5
-KAFKA_SECURITY_PROTOCOL=SASL_PLAINTEXT
-KAFKA_SASL_MECHANISM=PLAIN
-KAFKA_SASL_PLAIN_USERNAME=your_kafka_username
-KAFKA_SASL_PLAIN_PASSWORD=your_kafka_password
-
+# SMTP credentials for sending verification emails
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_EMAIL=your_email@gmail.com
-SMTP_PASSWORD=your_app_password
+SMTP_PASSWORD=your_gmail_app_password
 SMTP_TLS=True
 
-GATEWAY_URL=http://localhost:8080
+KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+KAFKA_SASL_PLAIN_USERNAME=admin
+KAFKA_SASL_PLAIN_PASSWORD=admin-password
+```
+
+#### 5. Chat Service (`chat-server/.env`)
+```ini
+APP_NAME=Instagram Chat Service
+DEBUG=True
+HOST=0.0.0.0
+PORT=8001
+# Update with your postgres username and password
+DATABASE_URL=postgresql+asyncpg://your_db_username:your_db_password@localhost:5432/instagram_db
+SERVICE_NAME=chat-service
+
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=admin-password
 ```
 
 ---
 
-### 4. Database Migrations (Alembic)
+## 🏃 Running the Application Services
 
-Run database migrations to initialize tables inside PostgreSQL (`instagram_db`):
+After the databases are migrated and the environment files are configured, start the services:
 
+### Local Running Mode
+Open five separate terminal sessions and execute:
 ```bash
-# 1. Authentication Server Migrations
-cd Authentication-Server
-alembic upgrade head
-cd ..
+# Terminal 1: Auth
+cd Authentication-Server && python main.py
 
-# 2. User Service Migrations
-cd User-Service
-alembic upgrade head
-cd ..
+# Terminal 2: User
+cd User-Service && python main.py
 
-# 3. Post Server Migrations
-cd Post-Server
-alembic upgrade head
-cd ..
+# Terminal 3: Post
+cd Post-Server && python main.py
 
-# 4. Chat Server Migrations
-cd chat-server
-alembic upgrade head
-cd ..
+# Terminal 4: Chat
+cd chat-server && python main.py
 
-# 5. Notification Server Migrations
-cd Notification-Server
-alembic upgrade head
-cd ..
+# Terminal 5: Notification
+cd Notification-Server && python main.py
 ```
 
----
-
-### 5. Running Microservices Individually (Local Host)
-
-After starting infrastructure (Kafka, Redis, MinIO) and running Alembic migrations, launch each service in separate terminal windows:
-
-#### Terminal 1: Authentication Server
+### Docker Container Running Mode
+If you prefer running containerized microservices:
 ```bash
-cd Authentication-Server
-python main.py
+# Build and run the services in their own network context
+docker compose -f Authentication-Server/docker-compose.yml up --build -d
+docker compose -f User-Service/docker-compose.yml up --build -d
+docker compose -f Post-Server/docker-compose.yml up --build -d
+docker compose -f chat-server/docker-compose.yml up --build -d
+docker compose -f Notification-Server/docker-compose.yml up --build -d
 ```
 
-#### Terminal 2: User Service
-```bash
-cd User-Service
-python main.py
-```
-
-#### Terminal 3: Post Server
-```bash
-cd Post-Server
-python main.py
-```
-
-#### Terminal 4: Chat Server
-```bash
-cd chat-server
-python main.py
-```
-
-#### Terminal 5: Notification Server
-```bash
-cd Notification-Server
-python main.py
-```
-
-#### Terminal 6: React Frontend (Vite)
+### 💻 Running the Frontend SPA
+In a separate terminal:
 ```bash
 cd insta-frontend
 npm install
 npm run dev
 ```
+Open `http://localhost:5173` to access the full application.
 
 ---
 
-## 📦 Independent Container Deployment (AWS ECS / Standalone Docker)
+## 🖼️ Screenshots & Dashboard Consoles
 
-Each microservice is containerized with its own dedicated `Dockerfile` and can be built and deployed independently to **AWS ECS Task Definitions** or AWS ECR.
+### Application User Interface
+| Authentication Onboarding | Direct Messaging Chat Page | User Timeline & Reels |
+| :--- | :--- | :--- |
+| ![Onboarding](https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=350&auto=format&fit=crop) | ![Chat UI](https://images.unsplash.com/photo-1611605698335-8b15d27e03f9?w=350&auto=format&fit=crop) | ![Profile Grid](https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=350&auto=format&fit=crop) |
 
-### 1. Build Container Images
-
-```bash
-# 1. Authentication Server Image
-docker build -t auth-service ./Authentication-Server
-
-# 2. User Service Image
-docker build -t user-service ./User-Service
-
-# 3. Post Service Image
-docker build -t post-service ./Post-Server
-
-# 4. Chat Service Image
-docker build -t chat-service ./chat-server
-
-# 5. Notification Service Image
-docker build -t notification-service ./Notification-Server
-
-# 6. React Frontend Image
-docker build -t insta-frontend ./insta-frontend
-
-# 7. Nginx Gateway Image
-docker build -t nginx-gateway ./nginx
-```
+### Infrastructure Admin Interfaces
+* **MinIO Object Console**: `http://localhost:9001` (Credentials: `admin`/`password123`)
+* **Kafka UI Dashboard**: `http://localhost:8082` (Broker Monitoring, Topics Registry)
+* **Redis Commander**: `http://localhost:8081` (Inspect Session cache & sockets)
+* **Swagger OpenAPI Docs**:
+  * Auth Service: `http://localhost:8080/auth/docs`
+  * Chat Service: `http://localhost:8080/chat/docs`
+  * Post Service: `http://localhost:8080/posts/docs`
+  * User Service: `http://localhost:8080/user-profile/docs`
 
 ---
 
-### 2. Run Container Images Independently
-
-```bash
-# 1. Authentication Server Container
-docker run -d --name auth_service -p 5000:5000 -p 50050:50050 --env-file ./Authentication-Server/.env auth-service
-
-# 2. User Service Container
-docker run -d --name user_service -p 6001:6001 -p 50051:50051 --env-file ./User-Service/.env user-service
-
-# 3. Post Service Container
-docker run -d --name post_service -p 7001:7001 --env-file ./Post-Server/.env post-service
-
-# 4. Chat Service Container
-docker run -d --name chat_service -p 8001:8001 --env-file ./chat-server/.env chat-service
-
-# 5. Notification Service Container
-docker run -d --name notification_service -p 5001:5001 --env-file ./Notification-Server/.env notification-service
-
-# 6. React Frontend Container
-docker run -d --name insta_frontend -p 5173:5173 insta-frontend
-
-# 7. Nginx API Gateway Container
-docker run -d --name nginx_gateway -p 8080:80 nginx-gateway
-```
-
----
-
-## 📄 Interactive API Documentation
-
+## 📄 Interactive API documentation
 Each FastAPI microservice provides interactive Swagger / OpenAPI documentation:
 
 - **Auth Service Docs**: `http://localhost:8080/auth/docs` (or `http://localhost:5000/docs`)

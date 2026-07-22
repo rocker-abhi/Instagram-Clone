@@ -11,7 +11,7 @@ services:
       - DEBUG=True
       - HOST=0.0.0.0
       - PORT=7001
-      - DATABASE_URL=postgresql+asyncpg://abhishek:admin%40123@host.docker.internal:5432/instagram_db
+      - DATABASE_URL=postgresql+asyncpg://your_db_username:your_db_password@host.docker.internal:5432/instagram_db
       - SERVICE_NAME=post-service
       - JWT_SECRET_KEY=my-super-secret-key
       - USER_SERVICE_HOST_GRPC=host.docker.internal

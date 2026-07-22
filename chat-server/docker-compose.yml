@@ -9,7 +9,7 @@ services:
     environment:
       - APP_NAME=Instagram Chat Service
       - DEBUG=True
-      - DATABASE_URL=postgresql+asyncpg://abhishek:admin%40123@host.docker.internal:5432/instagram_db
+      - DATABASE_URL=postgresql+asyncpg://your_db_username:your_db_password@host.docker.internal:5432/instagram_db
       - SERVICE_NAME=chat-service
       - HOST=0.0.0.0
       - PORT=8001
