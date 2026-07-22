@@ -57,7 +57,7 @@ export default function PasswordReset({ onSwitchToLogin, isResetFlow = false, us
       setError("");
       try {
         const response = await fetch(
-          `${API_BASE_URL}/auth/verify-reset-password?user_id=${encodeURIComponent(userId)}&code=${encodeURIComponent(code)}`
+          `${API_BASE_URL}/verify-reset-password?user_id=${encodeURIComponent(userId)}&code=${encodeURIComponent(code)}`
         );
         const data = await response.json();
 
@@ -151,7 +151,7 @@ export default function PasswordReset({ onSwitchToLogin, isResetFlow = false, us
     setIsLoading(true);
     setError("");
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/resend-verification-email`, {
+      const response = await fetch(`${API_BASE_URL}/resend-verification-email`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -230,7 +230,7 @@ export default function PasswordReset({ onSwitchToLogin, isResetFlow = false, us
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (emailRegex.test(identifier)) {
         try {
-          const response = await fetch(`${API_BASE_URL}/auth/request-password-reset`, {
+          const response = await fetch(`${API_BASE_URL}/request-password-reset`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -273,7 +273,7 @@ export default function PasswordReset({ onSwitchToLogin, isResetFlow = false, us
                 setError("");
               } else {
                 // Send verification link to email
-                const resetResponse = await fetch(`${API_BASE_URL}/auth/request-password-reset`, {
+                const resetResponse = await fetch(`${API_BASE_URL}/request-password-reset`, {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
@@ -390,7 +390,7 @@ export default function PasswordReset({ onSwitchToLogin, isResetFlow = false, us
         payload.phone = identifierVal;
       }
 
-      const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+      const response = await fetch(`${API_BASE_URL}/reset-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

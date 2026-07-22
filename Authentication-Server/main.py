@@ -1,4 +1,6 @@
 import logging
+import subprocess
+import sys
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqlalchemy import text
@@ -24,14 +26,16 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("Application is starting...")
 
-    # 1. Verify Database Connection
+    # 1. Verify Database Connection & Ensure Schema Exists
     try:
-        async with db.engine.connect() as conn:
+        async with db.engine.begin() as conn:
             await conn.execute(text("SELECT 1"))
-        logger.info("Database connection verified successfully.")
+            # Explicitly ensure the schema is created
+            await conn.execute(text("CREATE SCHEMA IF NOT EXISTS auth_schema"))
+        logger.info("Database connection verified and schema ensured successfully.")
     except Exception as e:
-        logger.critical("Database connection failed: %s", str(e))
-        raise SystemExit("Fatal: Database is unreachable.") from e
+        logger.critical("Database connection or schema creation failed: %s", str(e))
+        raise SystemExit("Fatal: Database is unreachable or schema cannot be created.") from e
 
     # 2. Verify Redis Connection
     try:
@@ -48,7 +52,24 @@ async def lifespan(app: FastAPI):
         logger.critical("Kafka connection failed: %s", str(e))
         raise SystemExit("Fatal: Kafka is unreachable.") from e
 
-    # 4. Start gRPC Server
+    # 4. Auto-run Database Migrations (Alembic)
+    try:
+        logger.info("Checking database schema and running migrations...")
+        result = subprocess.run(
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            logger.error("Alembic auto-migration failed: %s", result.stderr)
+            raise RuntimeError(f"Alembic auto-migration failed: {result.stderr}")
+        else:
+            logger.info("Alembic schema verification and migration successful.")
+    except Exception as e:
+        logger.critical("Database auto-migration failed: %s", str(e))
+        raise SystemExit("Fatal: Database migration failed.") from e
+
+    # 5. Start gRPC Server
     try:
         await start_grpc()
     except Exception as e:

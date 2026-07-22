@@ -144,6 +144,9 @@ Redis-Server/data/
 # Local server address notes — keep out of VCS
 servers_ip_port.txt
 insta-frontend/phone_auth.txt
+context.txt
+.antigravity*
+
 
 # ── IDEs & Editors ────────────────────────────────────────────
 .idea/

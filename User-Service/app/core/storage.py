@@ -18,7 +18,21 @@ class StorageFactory:
                 access_key=settings.MINIO_ACCESS_KEY,
                 secret_key=settings.MINIO_SECRET_KEY,
                 secure=False,
+                region="us-east-1",
             )
+
+            # Create a separate client for generating URLs so signatures match the public domain (localhost:9000)
+            url_client = Minio(
+                endpoint=settings.MINIO_PUBLIC_URL.replace("http://", "").replace("https://", ""),
+                access_key=settings.MINIO_ACCESS_KEY,
+                secret_key=settings.MINIO_SECRET_KEY,
+                secure=False,
+                region="us-east-1",
+            )
+
+            client.presigned_get_object = url_client.presigned_get_object
+            client.presigned_put_object = url_client.presigned_put_object
+            client.get_presigned_url = url_client.get_presigned_url
 
             cls._storage = MinioStorage(client)
 

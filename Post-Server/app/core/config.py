@@ -24,6 +24,7 @@ class __Settings(BaseSettings):
     MINIO_SECRET_KEY: str
     MINIO_SECURE: bool = False
     MINIO_PUBLIC_URL: str = "http://localhost:9000"
+    USER_SERVICE_GATEWAY_URL: str = os.getenv("USER_SERVICE_GATEWAY_URL", "http://nginx/user-profile")
 
     # Kafka Config
     KAFKA_BOOTSTRAP_SERVERS: str

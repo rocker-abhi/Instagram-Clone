@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import subprocess
+import sys
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqlalchemy import text
@@ -36,6 +38,23 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.critical("Database connection failed: %s", str(e))
         raise SystemExit("Fatal: Database is unreachable.") from e
+
+    # Auto-run Database Migrations (Alembic)
+    try:
+        logger.info("Checking database schema and running migrations...")
+        result = subprocess.run(
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            logger.error("Alembic auto-migration failed: %s", result.stderr)
+            raise RuntimeError(f"Alembic auto-migration failed: {result.stderr}")
+        else:
+            logger.info("Alembic schema verification and migration successful.")
+    except Exception as e:
+        logger.critical("Database auto-migration failed: %s", str(e))
+        raise SystemExit("Fatal: Database migrations failed to apply.") from e
 
     # Verify MinIO Storage Connection & Ensure Bucket Exists
     try:

@@ -2,6 +2,7 @@ import grpc
 import logging
 import sys
 import os
+import socket
 from typing import Tuple
 
 # Add generated stubs path to sys.path to allow user_pb2_grpc to import user_pb2 correctly
@@ -26,7 +27,13 @@ class UserServiceClient:
     def __init__(self):
         self.host = settings.USER_SERVICE_HOST_GRPC
         self.port = settings.USER_SERVICE_PORT_GRPC
-        self.target = f"{self.host}:{self.port}"
+        try:
+            resolved_host = socket.gethostbyname(self.host)
+            logger.info("Resolved user service gRPC host %s to %s", self.host, resolved_host)
+        except Exception as e:
+            logger.warning("Failed to resolve user service gRPC host %s: %s", self.host, e)
+            resolved_host = self.host
+        self.target = f"{resolved_host}:{self.port}"
 
     def _get_metadata(self, token: str) -> Tuple[Tuple[str, str], ...]:
         """

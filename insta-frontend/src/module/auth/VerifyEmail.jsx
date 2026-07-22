@@ -30,7 +30,7 @@ export default function VerifyEmail({ onGoToLogin }) {
 
       try {
         const response = await fetch(
-          `${API_BASE_URL}/auth/verify-email?user_id=${userId}&code=${code}`
+          `${API_BASE_URL}/verify-email?user_id=${userId}&code=${code}`
         );
         const data = await response.json();
 

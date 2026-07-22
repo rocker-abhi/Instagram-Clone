@@ -3,6 +3,10 @@ from app.exceptions.infrastructure_exception import InfrastructureException
 from app.models.user import User
 from app.models.password_history import PasswordHistory
 import uuid
+import asyncio
+from app.grpc.client.user_client import UserServiceClient
+from app.utils.jwt import create_access_token
+from datetime import timedelta
 
 
 class UserRepository:
@@ -11,10 +15,6 @@ class UserRepository:
         self.session = session
 
     async def get_user_id_by_username(self, username: str) -> uuid.UUID | None:
-        import asyncio
-        from app.grpc.client.user_client import UserServiceClient
-        from app.utils.jwt import create_access_token
-        from datetime import timedelta
         try:
             system_token = create_access_token({"sub": "system"}, expires_delta=timedelta(minutes=1))
             user_client = UserServiceClient()

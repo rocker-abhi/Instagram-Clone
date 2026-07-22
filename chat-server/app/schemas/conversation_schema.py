@@ -1,11 +1,12 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, AliasChoices
 from uuid import UUID
 from datetime import datetime
 from typing import Optional
 
 
 class ConversationCreateRequest(BaseModel):
-    user_two_id: UUID
+    user_two_id: UUID = Field(validation_alias=AliasChoices("user_two_id", "partner_id"))
+
 
 
 class ConversationResponse(BaseModel):

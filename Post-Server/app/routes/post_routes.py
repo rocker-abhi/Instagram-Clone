@@ -180,7 +180,7 @@ async def list_user_posts(
 
 
 @router.get(
-    "/{post_id}",
+    "/{post_id:uuid}",
     response_model=APIResponse[PostResponse],
     summary="Get post by ID"
 )

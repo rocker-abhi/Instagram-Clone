@@ -1,0 +1,27 @@
+services:
+  chat-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chat_service
+    ports:
+      - "8001:8001"
+    environment:
+      - APP_NAME=Instagram Chat Service
+      - DEBUG=True
+      - DATABASE_URL=postgresql+asyncpg://abhishek:admin%40123@host.docker.internal:5432/instagram_db
+      - SERVICE_NAME=chat-service
+      - HOST=0.0.0.0
+      - PORT=8001
+      - USER_SERVICE_HOST_GRPC=host.docker.internal
+      - USER_SERVICE_PORT_GRPC=50051
+      - GATEWAY_URL=http://host.docker.internal:8080
+      - REDIS_HOST=host.docker.internal
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - REDIS_PASSWORD=admin-password
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../shared/keys:/shared/keys:ro
+    restart: always

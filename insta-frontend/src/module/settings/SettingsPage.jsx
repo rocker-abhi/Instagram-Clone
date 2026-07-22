@@ -118,7 +118,7 @@ export default function SettingsPage({ token }) {
     setStatus({ type: null, message: "" });
 
     try {
-      const resetRes = await fetch(`${API_BASE_URL}/auth/change-password`, {
+      const resetRes = await fetch(`${API_BASE_URL}/change-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

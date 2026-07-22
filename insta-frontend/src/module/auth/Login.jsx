@@ -47,7 +47,7 @@ export default function Login({ onSwitchToRegister, onSwitchToPasswordReset }) {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const response = await fetch(`${API_BASE_URL}/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -86,7 +86,7 @@ export default function Login({ onSwitchToRegister, onSwitchToPasswordReset }) {
     setShowConflictModal(false);
     setError("");
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const response = await fetch(`${API_BASE_URL}/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

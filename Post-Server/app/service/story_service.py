@@ -136,7 +136,7 @@ class StoryService:
         try:
             async with httpx.AsyncClient(timeout=3.0) as client:
                 resp = await client.get(
-                    f"http://localhost:8002/user-profile/{current_user_id}/following",
+                    f"{settings.USER_SERVICE_GATEWAY_URL}/{current_user_id}/following",
                     headers={"Authorization": f"Bearer {auth_token}"},
                 )
                 if resp.status_code == 200:

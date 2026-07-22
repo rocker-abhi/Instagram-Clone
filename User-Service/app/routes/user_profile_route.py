@@ -171,6 +171,26 @@ async def get_follow_requests(
     )
 
 
+@router.get("/friends", response_model=APIResponse[list[UserProfileResponse]])
+async def get_my_friends(
+    current_user: dict = Depends(get_current_user),
+    service: UserProfileService = Depends(get_user_profile_service),
+):
+    """
+    GET /user-profile/friends
+
+    List all users followed by the current authenticated user (friends list for chat).
+    """
+    user_uuid = extract_user_uuid(current_user)
+    friends = await service.get_following_list(str(user_uuid))
+    return APIResponse(
+        success=True,
+        message="Friends list retrieved successfully",
+        data=friends,
+    )
+
+
+
 @router.post("/requests/{follow_id}/accept", response_model=APIResponse)
 async def accept_follow_request(
     follow_id: str,
@@ -304,7 +324,7 @@ async def get_user_profile(
     )
 
 
-@router.get("/{user_id}", response_model=APIResponse[UserProfileResponse])
+@router.get("/{user_id:uuid}", response_model=APIResponse[UserProfileResponse])
 async def get_user_profile_by_id(
     user_id: uuid.UUID,
     current_user: dict = Depends(get_current_user),

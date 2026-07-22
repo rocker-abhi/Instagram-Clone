@@ -1,0 +1,49 @@
+services:
+  notification-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: notification_service
+    ports:
+      - "5001:5001"
+    environment:
+      - APP_NAME=Instagram Notification Service
+      - DEBUG=True
+      - HOST=0.0.0.0
+      - PORT=5001
+      - DATABASE_URL=postgresql+asyncpg://abhishek:admin%40123@host.docker.internal:5432/instagram_db
+      - SERVICE_NAME=notification-service
+      - REDIS_HOST=host.docker.internal
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - REDIS_PASSWORD=admin-password
+      - REFRESH_TOKEN_TTL=300
+      - EMAIL_VERIFICATION_TTL=900
+      - REDIS_URL=redis://:admin-password@host.docker.internal:6379/0
+      - JWT_SECRET_KEY=my-super-secret-key
+      - ACCESS_TOKEN_EXPIRE_MINUTES=15
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - KAFKA_BATCH_SIZE=32768
+      - KAFKA_LINGER_MS=10
+      - KAFKA_ACKS=all
+      - KAFKA_RETRIES=5
+      - KAFKA_SECURITY_PROTOCOL=SASL_PLAINTEXT
+      - KAFKA_SASL_MECHANISM=PLAIN
+      - KAFKA_SASL_PLAIN_USERNAME=admin
+      - KAFKA_SASL_PLAIN_PASSWORD=admin-password
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_EMAIL=abhikoundal1019@gmail.com
+      - SMTP_PASSWORD=xjlg xmgh crrr gmex
+      - SMTP_TLS=True
+      - GATEWAY_URL=http://host.docker.internal:8080
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../shared/keys:/shared/keys:ro
+    restart: always
+
+networks:
+  default:
+    name: kafka-server_default
+    external: true

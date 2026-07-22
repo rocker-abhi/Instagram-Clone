@@ -259,7 +259,7 @@ export default function Register({ onSwitchToLogin }) {
     try {
       await confirmationResult.confirm(otp);
       
-      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      const response = await fetch(`${API_BASE_URL}/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -300,7 +300,7 @@ export default function Register({ onSwitchToLogin }) {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      const response = await fetch(`${API_BASE_URL}/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -156,62 +156,86 @@ export default function HomePage({ onLogout, token }) {
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [serverError, setServerError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const observerTargetRef = useRef(null);
+  const isFetchingRef = useRef(false);
 
   const fetchFeedPostsBatch = async (currentOffset = 0) => {
-    if (!token || isFetchingMore) return;
+    if (!token || isFetchingMore || isFetchingRef.current) return;
+    isFetchingRef.current = true;
     setIsFetchingMore(true);
+    setServerError(false);
+    setRetryCount(0);
 
-    try {
-      const res = await fetch(`${POST_API_BASE_URL}/posts?limit=${BATCH_SIZE}&offset=${currentOffset}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+    const tryFetch = async (attempt) => {
+      try {
+        const res = await fetch(`${POST_API_BASE_URL}/posts?limit=${BATCH_SIZE}&offset=${currentOffset}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
 
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.data) {
-          const newPostsRaw = json.data;
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            const newPostsRaw = json.data;
 
-          if (newPostsRaw.length < BATCH_SIZE) {
-            setHasMore(false);
+            if (newPostsRaw.length < BATCH_SIZE) {
+              setHasMore(false);
+            }
+
+            const mapped = newPostsRaw.map((p) => ({
+              id: p.id,
+              username: me.username || "user",
+              userAvatar: me.profile_picture_url || "",
+              image: p.media?.[0]?.url || "",
+              hls_url: p.media?.[0]?.hls_url || null,
+              mediaType: p.media?.[0]?.media_type || "IMAGE",
+              images: p.media?.map((m) => m.url) || [],
+              caption: p.caption || "",
+              location: p.location || "",
+              visibility: p.visibility,
+              commentsEnabled: p.comments_enabled,
+              likes: p.likes || 0,
+              hasLiked: p.hasLiked || false,
+              hasSaved: false,
+              comments: p.comments || [],
+              time: p.created_at ? new Date(p.created_at).toLocaleDateString() : "Just now"
+            }));
+
+            setPosts((prevPosts) => {
+              if (currentOffset === 0) return mapped;
+              const combined = [...prevPosts, ...mapped];
+              // Sliding Window: keep maximum 20 posts in active DOM memory
+              return combined.length > MAX_WINDOW_SIZE
+                ? combined.slice(combined.length - MAX_WINDOW_SIZE)
+                : combined;
+            });
+
+            setOffset(currentOffset + newPostsRaw.length);
+            setRetryCount(0);
+            isFetchingRef.current = false;
+            setIsFetchingMore(false);
+            return true;
           }
-
-          const mapped = newPostsRaw.map((p) => ({
-            id: p.id,
-            username: me.username || "user",
-            userAvatar: me.profile_picture_url || "",
-            image: p.media?.[0]?.url || "",
-            hls_url: p.media?.[0]?.hls_url || null,
-            mediaType: p.media?.[0]?.media_type || "IMAGE",
-            images: p.media?.map((m) => m.url) || [],
-            caption: p.caption || "",
-            location: p.location || "",
-            visibility: p.visibility,
-            commentsEnabled: p.comments_enabled,
-            likes: p.likes || 0,
-            hasLiked: p.hasLiked || false,
-            hasSaved: false,
-            comments: p.comments || [],
-            time: p.created_at ? new Date(p.created_at).toLocaleDateString() : "Just now"
-          }));
-
-          setPosts((prevPosts) => {
-            if (currentOffset === 0) return mapped;
-            const combined = [...prevPosts, ...mapped];
-            // Sliding Window: keep maximum 20 posts in active DOM memory
-            return combined.length > MAX_WINDOW_SIZE
-              ? combined.slice(combined.length - MAX_WINDOW_SIZE)
-              : combined;
-          });
-
-          setOffset(currentOffset + newPostsRaw.length);
+        }
+        throw new Error("Failed to load response");
+      } catch (err) {
+        console.warn(`Attempt ${attempt} failed to fetch feed posts:`, err);
+        if (attempt < 3) {
+          setRetryCount(attempt);
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          return await tryFetch(attempt + 1);
+        } else {
+          setRetryCount(3);
+          setServerError(true);
+          isFetchingRef.current = false;
+          setIsFetchingMore(false);
+          return false;
         }
       }
-    } catch (err) {
-      console.warn("Failed to fetch feed posts from Post-Server:", err);
-    } finally {
-      setIsFetchingMore(false);
-    }
+    };
+
+    await tryFetch(1);
   };
 
   // Initial fetch on mount or auth change
@@ -220,16 +244,16 @@ export default function HomePage({ onLogout, token }) {
     setOffset(0);
     setHasMore(true);
     fetchFeedPostsBatch(0);
-  }, [token, me]);
+  }, [token]);
 
   // Infinite scroll IntersectionObserver listener
   useEffect(() => {
     const target = observerTargetRef.current;
-    if (!target || !hasMore) return;
+    if (!target || !hasMore || serverError) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !isFetchingMore && hasMore) {
+        if (entries[0].isIntersecting && !isFetchingMore && hasMore && !serverError) {
           fetchFeedPostsBatch(offset);
         }
       },
@@ -240,7 +264,7 @@ export default function HomePage({ onLogout, token }) {
     return () => {
       if (target) observer.unobserve(target);
     };
-  }, [observerTargetRef, offset, isFetchingMore, hasMore]);
+  }, [observerTargetRef, offset, isFetchingMore, hasMore, serverError]);
 
   const [storiesFeed, setStoriesFeed] = useState([]);
   const [isCreateStoryModalOpen, setIsCreateStoryModalOpen] = useState(false);
@@ -759,6 +783,19 @@ export default function HomePage({ onLogout, token }) {
 
                 {/* Feed Items */}
                 <div className="space-y-6">
+                  {serverError && posts.length === 0 && (
+                    <div className="text-center py-12 bg-premium-card border border-premium-border rounded-3xl space-y-3">
+                      <p className="text-sm font-bold text-accent-coral font-display">Unable to connect to server 🔌</p>
+                      <p className="text-xs text-premium-muted">Please check your network connection or try again later.</p>
+                      <button 
+                        onClick={() => { setOffset(0); setHasMore(true); fetchFeedPostsBatch(0); }} 
+                        className="text-[10px] uppercase font-bold tracking-wider text-accent-cyan hover:text-accent-cyan/80 bg-accent-cyan/10 px-4 py-2 rounded-2xl border border-accent-cyan/20 transition-all active:scale-95 cursor-pointer"
+                      >
+                        Retry Connection
+                      </button>
+                    </div>
+                  )}
+
                   {posts.map((post) => (
                     <article
                       key={post.id}
@@ -910,11 +947,11 @@ export default function HomePage({ onLogout, token }) {
                     {isFetchingMore && (
                       <div className="flex items-center gap-2 text-xs text-premium-muted font-medium animate-pulse">
                         <div className="w-4 h-4 rounded-full border-2 border-accent-cyan border-t-transparent animate-spin" />
-                        <span>Fetching more posts...</span>
+                        <span>{retryCount > 0 ? `Connecting to server (Attempt ${retryCount}/3)...` : "Fetching more posts..."}</span>
                       </div>
                     )}
 
-                    {!hasMore && (
+                    {!hasMore && !serverError && (
                       <div className="text-center py-4 space-y-1">
                         <p className="text-xs font-bold text-premium-text font-display">You're all caught up! ✨</p>
                         <p className="text-[10px] text-premium-muted">You've seen all the latest posts for now.</p>

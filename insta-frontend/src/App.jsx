@@ -13,11 +13,11 @@ const originalFetch = window.fetch;
 window.fetch = async function (url, options) {
   let response = await originalFetch(url, options);
 
-  if (response.status === 401 && !url.includes("/auth/refresh") && !url.includes("/auth/login")) {
+  if (response.status === 401 && !url.includes("/refresh") && !url.includes("/login")) {
     const refreshToken = localStorage.getItem("refresh_token");
     if (refreshToken) {
       try {
-        const refreshResponse = await originalFetch(`${API_BASE_URL}/auth/refresh`, {
+        const refreshResponse = await originalFetch(`${API_BASE_URL}/refresh`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -94,7 +94,7 @@ export default function App() {
 
     const verifySessionAndProfile = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/auth/me`, {
+        const response = await fetch(`${API_BASE_URL}/me`, {
           method: "GET",
           headers: {
             "Authorization": `Bearer ${token}`
@@ -142,7 +142,7 @@ export default function App() {
     const accToken = localStorage.getItem("access_token");
     if (accToken) {
       try {
-        await fetch(`${API_BASE_URL}/auth/logout`, {
+        await fetch(`${API_BASE_URL}/logout`, {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${accToken}`

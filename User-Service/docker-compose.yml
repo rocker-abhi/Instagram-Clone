@@ -1,0 +1,47 @@
+services:
+  user-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: user_service
+    ports:
+      - "6001:6001"
+      - "50051:50051"
+    environment:
+      - APP_NAME=Instagram User Service
+      - DEBUG=True
+      - HOST=0.0.0.0
+      - PORT=6001
+      - DATABASE_URL=postgresql+asyncpg://abhishek:admin%40123@host.docker.internal:5432/instagram_db
+      - SERVICE_NAME=user-service
+      - JWT_SECRET_KEY=my-super-secret-key
+      - USER_SERVICE_HOST_GRPC=0.0.0.0
+      - USER_SERVICE_PORT_GRPC=50051
+      - AUTH_SERVICE_HOST_GRPC=host.docker.internal
+      - AUTH_SERVICE_PORT_GRPC=50050
+      - MINIO_ENDPOINT=host.docker.internal:9000
+      - MINIO_ACCESS_KEY=admin
+      - MINIO_SECRET_KEY=password123
+      - MINIO_SECURE=False
+      - MINIO_PUBLIC_URL=http://localhost:9000
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - KAFKA_BATCH_SIZE=32768
+      - KAFKA_LINGER_MS=10
+      - KAFKA_ACKS=all
+      - KAFKA_RETRIES=5
+      - KAFKA_SECURITY_PROTOCOL=SASL_PLAINTEXT
+      - KAFKA_SASL_MECHANISM=PLAIN
+      - KAFKA_SASL_PLAIN_USERNAME=admin
+      - KAFKA_SASL_PLAIN_PASSWORD=admin-password
+      - GATEWAY_URL=http://host.docker.internal:8080
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../shared/keys:/shared/keys:ro
+    restart: always
+
+networks:
+  default:
+    name: kafka-server_default
+    external: true
+
