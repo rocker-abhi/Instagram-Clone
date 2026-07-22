@@ -299,13 +299,6 @@ Open `http://localhost:5173` to access the full application.
 
 ---
 
-## 🖼️ Screenshots & Dashboard Consoles
-
-### Application User Interface
-| Authentication Onboarding | Direct Messaging Chat Page | User Timeline & Reels |
-| :--- | :--- | :--- |
-| ![Onboarding](https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=350&auto=format&fit=crop) | ![Chat UI](https://images.unsplash.com/photo-1611605698335-8b15d27e03f9?w=350&auto=format&fit=crop) | ![Profile Grid](https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=350&auto=format&fit=crop) |
-
 ### Infrastructure Admin Interfaces
 * **MinIO Object Console**: `http://localhost:9001` (Credentials: `admin`/`password123`)
 * **Kafka UI Dashboard**: `http://localhost:8082` (Broker Monitoring, Topics Registry)
